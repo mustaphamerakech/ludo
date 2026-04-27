@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ludo Mini - Realtime P2P</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --green: #2ecc71; --blue: #3498db; --red: #e74c3c; --yellow: #f1c40f;
+        }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #2c3e50; color: white; margin: 0; }
+        
+        /* Plateau de jeu */
+        #board {
+            width: 350px; height: 350px; background: #ecf0f1; position: relative;
+            border: 10px solid #34495e; border-radius: 10px; margin: 20px;
+        }
+        .case {
+            width: 48px; height: 48px; border: 1px solid #bdc3c7;
+            position: absolute; display: flex; align-items: center; justify-content: center;
+        }
+        .pion {
+            width: 30px; height: 30px; border-radius: 50%; border: 3px solid white;
+            position: absolute; transition: all 0.5s ease; z-index: 10;
+        }
+        .pion.shield { box-shadow: 0 0 15px 5px rgba(255,255,255,0.8); }
+
+        /* Zones UI */
+        #controls { background: #34495e; padding: 15px; border-radius: 10px; text-align: center; width: 350px; }
+        .btn { padding: 10px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        #dice-result { font-size: 24px; font-weight: bold; margin: 10px; color: var(--yellow); }
+        #status { font-size: 12px; color: #bdc3c7; margin-bottom: 10px; }
+        .active-turn { border: 3px solid var(--yellow); }
+    </style>
+</head>
+<body>
+
+    <h2>Ludo Mini 1vs1</h2>
+    
+    <div id="status">Chargement du réseau...</div>
+    <div id="network-controls">
+        <span id="my-id">Mon ID: ...</span><br>
+        <input type="text" id="peer-id-input" placeholder="ID de l'ami">
+        <button class="btn" onclick="connectToFriend()">Connecter</button>
+    </div>
+
+    <div id="board">
+        <div id="p1-1" class="pion" style="background: var(--blue);"></div>
+        <div id="p1-2" class="pion" style="background: var(--blue);"></div>
+        <div id="p2-1" class="pion" style="background: var(--green);"></div>
+        <div id="p2-2" class="pion" style="background: var(--green);"></div>
+    </div>
+
+    <div id="controls">
+        <div id="score">Moi: 0 | Ami: 0</div>
+        <div id="dice-result">🎲 ?</div>
+        <button id="roll-btn" class="btn" style="background: var(--yellow);" onclick="rollDice()">Lancer le dé</button>
+        <hr>
+        <div>
+            <button class="btn" onclick="selectBonus('x2')">Bonus x2</button>
+            <button class="btn" onclick="selectBonus('shield')">🛡️ Shield</button>
+            <button class="btn" onclick="selectBonus('choice')">🎯 Choix</button>
+        </div>
+    </div>
+
+<script>
+    // Config du plateau (simplifiée : 16 cases en carré)
+    const caseCoords = [
+        {x:10, y:10}, {x:70, y:10}, {x:130, y:10}, {x:190, y:10}, {x:250, y:10},
+        {x:290, y:10}, {x:290, y:70}, {x:290, y:130}, {x:290, y:190}, {x:290, y:250},
+        {x:290, y:290}, {x:230, y:290}, {x:170, y:290}, {x:110, y:290}, {x:50, y:290},
+        {x:10, y:290}, {x:10, y:230}, {x:10, y:170}, {x:10, y:110}, {x:10, y:50}
+    ];
+
+    let gameState = {
+        me: { pions: [0, 0], score: 0, id: 1 },
+        friend: { pions: [0, 0], score: 0, id: 2 },
+        turn: 1,
+        activeBonus: null
+    };
+
+    let peer, conn;
+    let myRole = 1; // 1 pour créateur, 2 pour invité
+
+    // Initialisation Réseau
+    peer = new Peer();
+    peer.on('open', id => {
+        document.getElementById('my-id').innerText = "Mon ID: " + id;
+        document.getElementById('status').innerText = "Prêt. Envoie l'ID à ton ami.";
+    });
+
+    peer.on('connection', c => {
+        conn = c;
+        myRole = 1;
+        setupDataListener();
+    });
+
+    function connectToFriend() {
+        const id = document.getElementById('peer-id-input').value;
+        conn = peer.connect(id);
+        myRole = 2;
+        setupDataListener();
+    }
+
+    function setupDataListener() {
+        document.getElementById('status').innerText = "Connecté !";
+        conn.on('data', data => handleData(data));
+    }
+
+    // Logique du Jeu
+    function rollDice() {
+        if (gameState.turn !== myRole) return alert("Pas ton tour !");
+        
+        let val = Math.floor(Math.random() * 6) + 1;
+        if (gameState.activeBonus === 'choice') val = parseInt(prompt("Choisis un chiffre (1-6)", "6")) || 6;
+        if (gameState.activeBonus === 'x2') val *= 2;
+
+        document.getElementById('dice-result').innerText = "🎲 " + val;
+        
+        // On bouge le pion 1 par défaut pour l'exemple
+        movePion(myRole, 0, val);
+        
+        conn.send({ type: 'MOVE', player: myRole, pIdx: 0, dice: val, bonus: gameState.activeBonus });
+        gameState.turn = (myRole === 1) ? 2 : 1;
+        gameState.activeBonus = null;
+    }
+
+    function handleData(data) {
+        if (data.type === 'MOVE') {
+            movePion(data.player, data.pIdx, data.dice, data.bonus);
+            document.getElementById('dice-result').innerText = "🎲 " + data.dice;
+            gameState.turn = myRole;
+        }
+    }
+
+    function movePion(playerNum, pIdx, step, bonus) {
+        let player = (playerNum === myRole) ? gameState.me : gameState.friend;
+        let other = (playerNum === myRole) ? gameState.friend : gameState.me;
+
+        player.pions[pIdx] += step;
+
+        // Règle Point Maison
+        if (player.pions[pIdx] >= caseCoords.length) {
+            player.score++;
+            player.pions[pIdx] = 0;
+            updateUI();
+            alert("POINT !");
+            return;
+        }
+
+        // Règle Capture
+        let collision = other.pions.findIndex(pos => pos === player.pions[pIdx] && pos !== 0);
+        if (collision !== -1) {
+            if (bonus !== 'shield') {
+                other.pions[collision] = 0;
+                player.score++;
+                alert("MANGÉ ! +1 Point");
+            }
+        }
+
+        updateUI();
+    }
+
+    function selectBonus(type) {
+        gameState.activeBonus = type;
+        alert("Bonus " + type + " activé pour le prochain lancer !");
+    }
+
+    function updateUI() {
+        // Update positions
+        drawPion('p1-1', gameState.me.pions[0], 1);
+        drawPion('p1-2', gameState.me.pions[1], 1);
+        drawPion('p2-1', gameState.friend.pions[0], 2);
+        drawPion('p2-2', gameState.friend.pions[1], 2);
+        
+        document.getElementById('score').innerText = `Moi: ${gameState.me.score} | Ami: ${gameState.friend.score}`;
+    }
+
+    function drawPion(id, index, playerNum) {
+        const el = document.getElementById(id);
+        const pos = caseCoords[index % caseCoords.length];
+        el.style.left = pos.x + (playerNum === 2 ? 10 : 0) + "px"; 
+        el.style.top = pos.y + (playerNum === 2 ? 10 : 0) + "px";
+    }
+
+    // Initialisation visuelle
+    updateUI();
+</script>
+</body>
+</html>
