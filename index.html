@@ -532,6 +532,9 @@
             config: {
                 'iceServers': [
                     { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' },
                     { urls: 'stun:openrelay.metered.ca:80' },
                     {
                         urls: 'turn:openrelay.metered.ca:80',
@@ -575,6 +578,16 @@
                 conn = c; myRole = 1;
                 document.getElementById('status-text').innerText = "Connecting...";
                 
+                setTimeout(() => {
+                    if (conn && conn.peerConnection) {
+                        conn.peerConnection.addEventListener('iceconnectionstatechange', () => {
+                            if (conn.peerConnection.iceConnectionState === 'failed') {
+                                alert("HOST: WebRTC ICE Connection Failed. Firewall is blocking P2P.");
+                            }
+                        });
+                    }
+                }, 1000);
+                
                 c.on('open', () => { 
                     alert("HOST: Connection successfully established!");
                     startGame(); 
@@ -599,8 +612,18 @@
             
             alert("CLIENT: Attempting to connect to host...");
             document.getElementById('status-text').innerText = "Connecting to " + code + "...";
-            conn = peer.connect(fullId, { reliable: true });
+            conn = peer.connect(fullId, { reliable: false });
             myRole = 2;
+            
+            setTimeout(() => {
+                if (conn && conn.peerConnection) {
+                    conn.peerConnection.addEventListener('iceconnectionstatechange', () => {
+                        if (conn.peerConnection.iceConnectionState === 'failed') {
+                            alert("CLIENT: WebRTC ICE Connection Failed. Mobile carrier is blocking P2P.");
+                        }
+                    });
+                }
+            }, 1000);
             
             conn.on('open', () => { 
                 alert("CLIENT: Connection successfully established!");
