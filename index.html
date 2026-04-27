@@ -564,13 +564,18 @@
             });
 
             peer.on('connection', c => {
+                alert("HOST: Incoming connection received from client!");
                 conn = c; myRole = 1;
                 document.getElementById('status-text').innerText = "Connecting...";
                 
-                c.on('open', () => { startGame(); sync(); });
+                c.on('open', () => { 
+                    alert("HOST: Connection successfully established!");
+                    startGame(); 
+                    sync(); 
+                });
                 
                 c.on('error', err => {
-                    alert("Data connection error: " + err);
+                    alert("HOST Data connection error: " + err);
                 });
                 
                 c.on('close', () => {
@@ -583,14 +588,18 @@
             const id = document.getElementById('target-id').value;
             if (!id) return;
             
+            alert("CLIENT: Attempting to connect to host...");
             document.getElementById('status-text').innerText = "Connecting to " + id + "...";
             conn = peer.connect(id, { reliable: true });
             myRole = 2;
             
-            conn.on('open', () => { startGame(); });
+            conn.on('open', () => { 
+                alert("CLIENT: Connection successfully established!");
+                startGame(); 
+            });
             
             conn.on('error', err => {
-                alert("Join Error: " + err);
+                alert("CLIENT Join Error: " + err);
             });
             
             conn.on('close', () => {
