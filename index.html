@@ -549,24 +549,53 @@
                         credential: 'openrelayproject'
                     }
                 ]
-            }
+            },
+            debug: 3
         };
 
         window.onload = () => {
             peer = new Peer(peerConfig);
+            
             peer.on('open', id => { document.getElementById('my-peer-id').innerText = id; });
+            
+            peer.on('error', err => {
+                console.error("Peer Error:", err);
+                alert("Connection Error: " + err.type + "\n" + err.message);
+            });
+
             peer.on('connection', c => {
                 conn = c; myRole = 1;
+                document.getElementById('status-text').innerText = "Connecting...";
+                
                 c.on('open', () => { startGame(); sync(); });
+                
+                c.on('error', err => {
+                    alert("Data connection error: " + err);
+                });
+                
+                c.on('close', () => {
+                    alert("Opponent disconnected.");
+                });
             });
         };
 
         function joinGame() {
             const id = document.getElementById('target-id').value;
             if (!id) return;
-            conn = peer.connect(id);
+            
+            document.getElementById('status-text').innerText = "Connecting to " + id + "...";
+            conn = peer.connect(id, { reliable: true });
             myRole = 2;
+            
             conn.on('open', () => { startGame(); });
+            
+            conn.on('error', err => {
+                alert("Join Error: " + err);
+            });
+            
+            conn.on('close', () => {
+                alert("Connection lost with host.");
+            });
         }
 
         function startGame() {
