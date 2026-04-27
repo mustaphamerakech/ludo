@@ -528,8 +528,32 @@
             }
         }
 
+        const peerConfig = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:openrelay.metered.ca:80' },
+                    {
+                        urls: 'turn:openrelay.metered.ca:80',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    },
+                    {
+                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                        username: 'openrelayproject',
+                        credential: 'openrelayproject'
+                    }
+                ]
+            }
+        };
+
         window.onload = () => {
-            peer = new Peer();
+            peer = new Peer(peerConfig);
             peer.on('open', id => { document.getElementById('my-peer-id').innerText = id; });
             peer.on('connection', c => {
                 conn = c; myRole = 1;
