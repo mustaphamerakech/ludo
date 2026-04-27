@@ -317,13 +317,13 @@
         <h1 style="font-size: 36px; color: var(--text-dark); margin-bottom: 30px;">LUDO <br>WORLD MINI</h1>
         <div class="card">
             <h3 style="margin-top:0;">Host a Game</h3>
-            <p style="color: #666; font-size: 14px;">Share your ID with a friend:</p>
-            <p><span id="my-peer-id" class="highlight">Generating ID...</span></p>
+            <p style="color: #666; font-size: 14px;">Share your 4-digit code:</p>
+            <p><span id="my-peer-id" class="highlight" style="font-size: 32px; letter-spacing: 5px;">...</span></p>
             
             <hr style="border:0; border-top: 1px solid var(--border-gray); margin: 25px 0;">
             
             <h3 style="margin-top:0;">Join a Game</h3>
-            <input type="text" id="target-id" placeholder="Friend's ID">
+            <input type="number" id="target-id" placeholder="Enter 4-digit code" style="text-align: center; font-size: 24px; letter-spacing: 5px;">
             <button class="btn" onclick="joinGame()">Connect & Play</button>
         </div>
     </div>
@@ -554,9 +554,16 @@
         };
 
         window.onload = () => {
-            peer = new Peer(peerConfig);
+            // Generate a random 4-digit code
+            const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
             
-            peer.on('open', id => { document.getElementById('my-peer-id').innerText = id; });
+            // Connect to PeerJS using this specific ID
+            peer = new Peer('ludomini-' + randomCode, peerConfig);
+            
+            peer.on('open', id => { 
+                // Display only the 4-digit code to the user
+                document.getElementById('my-peer-id').innerText = randomCode; 
+            });
             
             peer.on('error', err => {
                 console.error("Peer Error:", err);
@@ -585,12 +592,14 @@
         };
 
         function joinGame() {
-            const id = document.getElementById('target-id').value;
-            if (!id) return;
+            const code = document.getElementById('target-id').value.trim();
+            if (!code) return;
+            
+            const fullId = 'ludomini-' + code;
             
             alert("CLIENT: Attempting to connect to host...");
-            document.getElementById('status-text').innerText = "Connecting to " + id + "...";
-            conn = peer.connect(id, { reliable: true });
+            document.getElementById('status-text').innerText = "Connecting to " + code + "...";
+            conn = peer.connect(fullId, { reliable: true });
             myRole = 2;
             
             conn.on('open', () => { 
