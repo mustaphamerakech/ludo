@@ -3,190 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ludo Mini - Realtime P2P</title>
+    <title>Ludo Mini Pro - Realtime</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --green: #2ecc71; --blue: #3498db; --red: #e74c3c; --yellow: #f1c40f;
-        }
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #2c3e50; color: white; margin: 0; }
+        :root { --blue: #3498db; --green: #2ecc71; --red: #e74c3c; --yellow: #f1c40f; --bg: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; margin: 0; overflow-x: hidden; }
         
-        /* Plateau de jeu */
-        #board {
-            width: 350px; height: 350px; background: #ecf0f1; position: relative;
-            border: 10px solid #34495e; border-radius: 10px; margin: 20px;
+        #game-container { position: relative; margin-top: 20px; }
+        #board { 
+            width: 380px; height: 380px; background: #ecf0f1; position: relative; 
+            border: 8px solid #34495e; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .case {
-            width: 48px; height: 48px; border: 1px solid #bdc3c7;
-            position: absolute; display: flex; align-items: center; justify-content: center;
-        }
-        .pion {
-            width: 30px; height: 30px; border-radius: 50%; border: 3px solid white;
-            position: absolute; transition: all 0.5s ease; z-index: 10;
-        }
-        .pion.shield { box-shadow: 0 0 15px 5px rgba(255,255,255,0.8); }
 
-        /* Zones UI */
-        #controls { background: #34495e; padding: 15px; border-radius: 10px; text-align: center; width: 350px; }
-        .btn { padding: 10px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
-        #dice-result { font-size: 24px; font-weight: bold; margin: 10px; color: var(--yellow); }
-        #status { font-size: 12px; color: #bdc3c7; margin-bottom: 10px; }
-        .active-turn { border: 3px solid var(--yellow); }
+        .case { 
+            position: absolute; width: 32px; height: 32px; border: 1px solid #bdc3c7; 
+            box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px;
+        }
+        .safe-zone { background: #bdc3c7; border: 2px solid gold; } /* Cases étoiles */
+        
+        .pion { 
+            position: absolute; width: 24px; height: 24px; border-radius: 50%; 
+            border: 3px solid white; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            z-index: 100; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .pion.shield { box-shadow: 0 0 12px 6px #fff; border-color: gold; }
+
+        .power-up { position: absolute; font-size: 18px; z-index: 50; animation: bounce 1s infinite alternate; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+
+        #ui { width: 380px; background: #34495e; padding: 15px; border-radius: 0 0 15px 15px; text-align: center; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; transition: 0.2s; }
+        .btn-roll { background: var(--yellow); color: #000; width: 80%; font-size: 18px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        #network-info { font-size: 12px; color: #aaa; margin: 10px; }
+        .p1-color { color: var(--blue); } .p2-color { color: var(--green); }
     </style>
 </head>
 <body>
 
-    <h2>Ludo Mini 1vs1</h2>
-    
-    <div id="status">Chargement du réseau...</div>
-    <div id="network-controls">
-        <span id="my-id">Mon ID: ...</span><br>
-        <input type="text" id="peer-id-input" placeholder="ID de l'ami">
-        <button class="btn" onclick="connectToFriend()">Connecter</button>
+    <div id="network-info">
+        <span id="my-id">Initialisation...</span> | 
+        <input type="text" id="join-id" placeholder="ID de l'ami">
+        <button onclick="connectToPeer()">Connecter</button>
     </div>
 
-    <div id="board">
-        <div id="p1-1" class="pion" style="background: var(--blue);"></div>
-        <div id="p1-2" class="pion" style="background: var(--blue);"></div>
-        <div id="p2-1" class="pion" style="background: var(--green);"></div>
-        <div id="p2-2" class="pion" style="background: var(--green);"></div>
+    <div id="game-container">
+        <div id="board">
+            </div>
     </div>
 
-    <div id="controls">
-        <div id="score">Moi: 0 | Ami: 0</div>
-        <div id="dice-result">🎲 ?</div>
-        <button id="roll-btn" class="btn" style="background: var(--yellow);" onclick="rollDice()">Lancer le dé</button>
-        <hr>
-        <div>
-            <button class="btn" onclick="selectBonus('x2')">Bonus x2</button>
-            <button class="btn" onclick="selectBonus('shield')">🛡️ Shield</button>
-            <button class="btn" onclick="selectBonus('choice')">🎯 Choix</button>
-        </div>
+    <div id="ui">
+        <div id="turn-display">Attente de connexion...</div>
+        <div id="score-display">P1: 0 | P2: 0</div>
+        <h1 id="dice-view">🎲</h1>
+        <button id="roll-btn" class="btn btn-roll" onclick="handleRoll()">LANCER LE DÉ</button>
+        <div id="power-inventory" style="margin-top:10px; font-size:14px;">Pouvoir actif: Aucun</div>
     </div>
 
 <script>
-    // Config du plateau (simplifiée : 16 cases en carré)
-    const caseCoords = [
-        {x:10, y:10}, {x:70, y:10}, {x:130, y:10}, {x:190, y:10}, {x:250, y:10},
-        {x:290, y:10}, {x:290, y:70}, {x:290, y:130}, {x:290, y:190}, {x:290, y:250},
-        {x:290, y:290}, {x:230, y:290}, {x:170, y:290}, {x:110, y:290}, {x:50, y:290},
-        {x:10, y:290}, {x:10, y:230}, {x:10, y:170}, {x:10, y:110}, {x:10, y:50}
-    ];
+    const BOARD_SIZE = 380;
+    const CASE_SIZE = 34;
+    let peer, conn;
+    let myRole = null; // 1 ou 2
+    
+    // Chemin simplifié en "U" pour 1vs1 (plus rapide et robuste)
+    const path = [];
+    for(let i=0; i<6; i++) path.push({x: i*CASE_SIZE + 20, y: 170}); // Ligne départ P1
+    for(let i=0; i<6; i++) path.push({x: 190, y: 170 - (i*CASE_SIZE)}); // Vers le haut
+    for(let i=0; i<2; i++) path.push({x: 190 + (i*CASE_SIZE), y: 0 + 20}); // Traversée haut
+    for(let i=0; i<6; i++) path.push({x: 230, y: i*CASE_SIZE + 20}); // Vers le centre
+    const WIN_POS = path.length;
 
-    let gameState = {
-        me: { pions: [0, 0], score: 0, id: 1 },
-        friend: { pions: [0, 0], score: 0, id: 2 },
+    let state = {
         turn: 1,
-        activeBonus: null
+        p1: { pions: [0, 0, -1, -1], score: 0, power: null }, // -1 = Dans la base
+        p2: { pions: [0, 0, -1, -1], score: 0, power: null },
+        powers: [{pos: 5, type: '🛡️'}, {pos: 12, type: '🚀'}, {pos: 18, type: '🎯'}]
     };
 
-    let peer, conn;
-    let myRole = 1; // 1 pour créateur, 2 pour invité
-
-    // Initialisation Réseau
+    // --- INITIALISATION RÉSEAU ---
     peer = new Peer();
-    peer.on('open', id => {
-        document.getElementById('my-id').innerText = "Mon ID: " + id;
-        document.getElementById('status').innerText = "Prêt. Envoie l'ID à ton ami.";
-    });
+    peer.on('open', id => { document.getElementById('my-id').innerText = "Mon ID: " + id; });
+    peer.on('connection', c => { conn = c; myRole = 1; setupGame(); });
 
-    peer.on('connection', c => {
-        conn = c;
-        myRole = 1;
-        setupDataListener();
-    });
-
-    function connectToFriend() {
-        const id = document.getElementById('peer-id-input').value;
+    function connectToPeer() {
+        const id = document.getElementById('join-id').value;
         conn = peer.connect(id);
         myRole = 2;
-        setupDataListener();
+        setupGame();
     }
 
-    function setupDataListener() {
-        document.getElementById('status').innerText = "Connecté !";
-        conn.on('data', data => handleData(data));
-    }
-
-    // Logique du Jeu
-    function rollDice() {
-        if (gameState.turn !== myRole) return alert("Pas ton tour !");
-        
-        let val = Math.floor(Math.random() * 6) + 1;
-        if (gameState.activeBonus === 'choice') val = parseInt(prompt("Choisis un chiffre (1-6)", "6")) || 6;
-        if (gameState.activeBonus === 'x2') val *= 2;
-
-        document.getElementById('dice-result').innerText = "🎲 " + val;
-        
-        // On bouge le pion 1 par défaut pour l'exemple
-        movePion(myRole, 0, val);
-        
-        conn.send({ type: 'MOVE', player: myRole, pIdx: 0, dice: val, bonus: gameState.activeBonus });
-        gameState.turn = (myRole === 1) ? 2 : 1;
-        gameState.activeBonus = null;
-    }
-
-    function handleData(data) {
-        if (data.type === 'MOVE') {
-            movePion(data.player, data.pIdx, data.dice, data.bonus);
-            document.getElementById('dice-result').innerText = "🎲 " + data.dice;
-            gameState.turn = myRole;
-        }
-    }
-
-    function movePion(playerNum, pIdx, step, bonus) {
-        let player = (playerNum === myRole) ? gameState.me : gameState.friend;
-        let other = (playerNum === myRole) ? gameState.friend : gameState.me;
-
-        player.pions[pIdx] += step;
-
-        // Règle Point Maison
-        if (player.pions[pIdx] >= caseCoords.length) {
-            player.score++;
-            player.pions[pIdx] = 0;
-            updateUI();
-            alert("POINT !");
-            return;
-        }
-
-        // Règle Capture
-        let collision = other.pions.findIndex(pos => pos === player.pions[pIdx] && pos !== 0);
-        if (collision !== -1) {
-            if (bonus !== 'shield') {
-                other.pions[collision] = 0;
-                player.score++;
-                alert("MANGÉ ! +1 Point");
-            }
-        }
-
+    function setupGame() {
+        conn.on('data', data => { state = data; updateUI(); });
+        document.getElementById('turn-display').innerText = "C'est au Joueur 1";
+        initBoard();
         updateUI();
     }
 
-    function selectBonus(type) {
-        gameState.activeBonus = type;
-        alert("Bonus " + type + " activé pour le prochain lancer !");
+    function initBoard() {
+        const b = document.getElementById('board');
+        path.forEach((p, i) => {
+            const c = document.createElement('div');
+            c.className = 'case';
+            if([0, 6, 12, 18].includes(i)) c.className += ' safe-zone';
+            c.style.left = p.x + 'px'; c.style.top = p.y + 'px';
+            c.innerText = i;
+            b.appendChild(c);
+        });
+        // Création des pions
+        for(let i=0; i<4; i++) {
+            createPionUI('p1', i, 'var(--blue)');
+            createPionUI('p2', i, 'var(--green)');
+        }
+    }
+
+    function createPionUI(p, i, col) {
+        const div = document.createElement('div');
+        div.id = `${p}-${i}`;
+        div.className = 'pion';
+        div.style.background = col;
+        div.onclick = () => selectPion(i);
+        document.getElementById('board').appendChild(div);
+    }
+
+    // --- LOGIQUE DE JEU ---
+    function handleRoll() {
+        if(state.turn !== myRole) return;
+        let d = Math.floor(Math.random() * 6) + 1;
+        
+        // Appliquer Pouvoir 🎯 (Choix)
+        if(state[`p${myRole}`].power === '🎯') {
+            d = parseInt(prompt("Choisis ton chiffre (1-6)", "6")) || 6;
+            state[`p${myRole}`].power = null;
+        }
+        // Appliquer Pouvoir 🚀 (x2)
+        if(state[`p${myRole}`].power === '🚀') {
+            d *= 2;
+            state[`p${myRole}`].power = null;
+        }
+
+        document.getElementById('dice-view').innerText = "🎲 " + d;
+        
+        // Vérifier si des mouvements sont possibles
+        const canMove = state[`p${myRole}`].pions.some(pos => pos !== -1 || d === 6);
+        if(!canMove) {
+            passTurn();
+            return;
+        }
+
+        // Pour simplifier : on bouge automatiquement le premier pion disponible
+        let moved = false;
+        for(let i=0; i<4; i++) {
+            let pos = state[`p${myRole}`].pions[i];
+            if(pos === -1 && d === 6) { // Sortir un pion
+                state[`p${myRole}`].pions[i] = 0;
+                moved = true; break;
+            } else if(pos !== -1) { // Avancer
+                state[`p${myRole}`].pions[i] += d;
+                checkRules(i, d);
+                moved = true; break;
+            }
+        }
+
+        if(moved && d !== 6) passTurn();
+        sync();
+    }
+
+    function checkRules(pIdx, d) {
+        let me = state[`p${myRole}`];
+        let op = state[`p${myRole===1?2:1}`];
+        let myPos = me.pions[pIdx];
+
+        // 1. Victoire / Maison
+        if(myPos >= WIN_POS) {
+            me.score++;
+            me.pions[pIdx] = -2; // Sorti du jeu
+            alert("Un pion est arrivé ! +1 Point");
+        }
+
+        // 2. Pouvoirs
+        let pwIdx = state.powers.findIndex(p => p.pos === myPos);
+        if(pwIdx !== -1) {
+            me.power = state.powers[pwIdx].type;
+            state.powers[pwIdx].pos = Math.floor(Math.random() * WIN_POS); // Déplacer le pouvoir
+        }
+
+        // 3. Manger
+        op.pions.forEach((pos, idx) => {
+            if(pos === myPos && ![0, 6, 12, 18].includes(pos)) {
+                if(me.power !== '🛡️') {
+                    op.pions[idx] = -1; // Retour base
+                    me.score++;
+                    alert("MANGÉ ! +1 Point");
+                }
+            }
+        });
+        
+        if(me.power === '🛡️') me.power = null; // Consommé si on a servi
+    }
+
+    function passTurn() {
+        state.turn = state.turn === 1 ? 2 : 1;
+    }
+
+    function sync() {
+        conn.send(state);
+        updateUI();
     }
 
     function updateUI() {
-        // Update positions
-        drawPion('p1-1', gameState.me.pions[0], 1);
-        drawPion('p1-2', gameState.me.pions[1], 1);
-        drawPion('p2-1', gameState.friend.pions[0], 2);
-        drawPion('p2-2', gameState.friend.pions[1], 2);
+        const p1 = state.p1; const p2 = state.p2;
         
-        document.getElementById('score').innerText = `Moi: ${gameState.me.score} | Ami: ${gameState.friend.score}`;
+        // Pions P1
+        p1.pions.forEach((pos, i) => updatePionPos('p1', i, pos, 0));
+        p2.pions.forEach((pos, i) => updatePionPos('p2', i, pos, 5));
+
+        document.getElementById('score-display').innerText = `P1: ${p1.score} | P2: ${p2.score}`;
+        document.getElementById('turn-display').innerText = state.turn === myRole ? "À TOI DE JOUER !" : "Attente de l'ami...";
+        document.getElementById('turn-display').style.color = state.turn === 1 ? 'var(--blue)' : 'var(--green)';
+        document.getElementById('power-inventory').innerText = "Pouvoir: " + (state[`p${myRole}`]?.power || "Aucun");
+        
+        // Dessiner les pouvoirs
+        document.querySelectorAll('.power-up').forEach(e => e.remove());
+        state.powers.forEach(p => {
+            const d = document.createElement('div');
+            d.className = 'power-up';
+            d.innerText = p.type;
+            d.style.left = path[p.pos].x + 5 + 'px';
+            d.style.top = path[p.pos].y + 'px';
+            document.getElementById('board').appendChild(d);
+        });
+
+        if(p1.score >= 3 || p2.score >= 3) alert("PARTIE TERMINÉE !");
     }
 
-    
-    function drawPion(id, index, playerNum) {
-        const el = document.getElementById(id);
-        const pos = caseCoords[index % caseCoords.length];
-        el.style.left = pos.x + (playerNum === 2 ? 10 : 0) + "px"; 
-        el.style.top = pos.y + (playerNum === 2 ? 10 : 0) + "px";
+    function updatePionPos(p, i, pos, offset) {
+        const el = document.getElementById(`${p}-${i}`);
+        if(pos === -1) { // Base
+            el.style.left = (p === 'p1' ? 20 : 320) + 'px';
+            el.style.top = (20 + i*30) + 'px';
+        } else if(pos === -2) { // Gagné
+            el.style.display = 'none';
+        } else {
+            const coords = path[pos % path.length];
+            el.style.left = coords.x + offset + 'px';
+            el.style.top = coords.y + offset + 'px';
+        }
     }
-
-    // Initialisation visuelle
-    updateUI();
 </script>
 </body>
 </html>
