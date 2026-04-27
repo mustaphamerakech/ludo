@@ -177,6 +177,7 @@
         document.getElementById('score').innerText = `Moi: ${gameState.me.score} | Ami: ${gameState.friend.score}`;
     }
 
+    
     function drawPion(id, index, playerNum) {
         const el = document.getElementById(id);
         const pos = caseCoords[index % caseCoords.length];
