@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ludo Pro</title>
+    <title>Ludo World Mini</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --blue: #00d2ff;
             --red: #ff416c;
-            --green: #00b09b;
+            --green: #00ff87;
             --yellow: #ffb75e;
+            --bg-color: #0d0e15;
         }
         body {
             margin: 0;
             font-family: 'Inter', sans-serif;
-            background: radial-gradient(circle at center, #67B26F, #4ca2cd);
+            background: radial-gradient(circle at top, #1a0b2e, #000000);
             color: white;
             min-height: 100vh;
             overflow: hidden;
@@ -40,13 +41,13 @@
             box-sizing: border-box;
         }
         .card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(15px);
             padding: 30px;
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(0, 210, 255, 0.3);
             text-align: center;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5), 0 0 20px rgba(0,210,255,0.1);
             width: 100%;
             box-sizing: border-box;
         }
@@ -54,24 +55,25 @@
             width: 100%;
             padding: 12px;
             margin: 15px 0;
-            border: none;
+            border: 1px solid rgba(255,255,255,0.2);
             border-radius: 10px;
             outline: none;
             font-size: 16px;
             box-sizing: border-box;
-            background: rgba(255,255,255,0.9);
+            background: rgba(0,0,0,0.5);
+            color: white;
         }
         .btn {
             width: 100%;
             padding: 12px;
             border: none;
             border-radius: 10px;
-            background: linear-gradient(45deg, #FF512F, #DD2476);
+            background: linear-gradient(45deg, var(--blue), #0072ff);
             color: white;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(221, 36, 118, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 210, 255, 0.4);
             transition: 0.2s;
         }
         .btn:active {
@@ -79,7 +81,7 @@
         }
         .highlight {
             font-weight: bold;
-            color: #ffb75e;
+            color: var(--green);
             user-select: all;
         }
 
@@ -88,18 +90,18 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 10px;
+            padding: 15px 10px 5px 10px;
             box-sizing: border-box;
         }
         .player-card {
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             padding: 8px 12px;
             border-radius: 20px;
             display: flex;
             align-items: center;
             gap: 8px;
             backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
             font-size: 12px;
             transition: 0.3s;
         }
@@ -107,7 +109,7 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            border: 2px solid white;
+            box-shadow: 0 0 10px currentColor;
         }
         .active-turn {
             box-shadow: 0 0 15px rgba(255,255,255,0.8);
@@ -120,153 +122,187 @@
             padding: 5px 10px;
             background: rgba(0,0,0,0.3);
             border-radius: 20px;
+            text-align: center;
         }
 
         #board-container {
-            padding: 10px;
-            background: linear-gradient(45deg, #8B5A2B, #A0522D);
-            border-radius: 15px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 20px;
+            position: relative;
         }
         #board {
             display: grid;
-            grid-template-columns: repeat(15, 1fr);
-            grid-template-rows: repeat(15, 1fr);
-            width: 360px;
-            height: 360px;
-            background: #fff;
-            gap: 1px;
-            border: 2px solid #5c3a21;
+            grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(7, 1fr);
+            width: 330px;
+            height: 330px;
+            gap: 3px;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid rgba(0, 210, 255, 0.4);
+            border-radius: 10px;
+            padding: 3px;
+            box-shadow: 0 0 25px rgba(0, 210, 255, 0.15);
+            backdrop-filter: blur(10px);
             position: relative;
         }
         .base {
             position: relative;
-            padding: 15px;
+            padding: 8px;
             box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 10px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
         }
         .base-inner {
             width: 100%;
             height: 100%;
-            background: white;
-            border-radius: 15px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             place-items: center;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
         }
         .base-circle {
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            background: rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.1);
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
         }
         .home-center {
-            background: conic-gradient(from 45deg,
-                var(--green) 0deg 90deg,
-                var(--yellow) 90deg 180deg,
-                var(--blue) 180deg 270deg,
-                var(--red) 270deg 360deg
-            );
-            border: 1px solid #ccc;
-        }
-        .path-cell {
-            background: white;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            color: black;
+            font-size: 24px;
+            text-shadow: 0 0 10px white;
+            box-shadow: inset 0 0 20px rgba(0,210,255,0.3);
         }
-        .safe-zone {
-            font-size: 14px;
-            text-shadow: 0 0 5px rgba(255,255,255,0.8);
+        .path-cell {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            position: relative;
+        }
+        .power-icon {
+            animation: float 2s infinite ease-in-out;
+            pointer-events: none;
+            z-index: 50;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-3px) scale(1.1); }
         }
 
         .pawn {
             position: absolute;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 -4px 6px rgba(0,0,0,0.2), inset 0 4px 6px rgba(255,255,255,0.6);
-            transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8), inset 0 4px 6px rgba(255,255,255,0.4);
             z-index: 100;
-            border: 1px solid rgba(255,255,255,0.5);
             pointer-events: none;
         }
         .pawn.can-move {
-            animation: bounce 0.6s infinite alternate;
-            z-index: 101;
-            border: 2px solid white;
             cursor: pointer;
             pointer-events: auto;
+            border: 2px solid white;
+            box-shadow: 0 0 15px currentColor, inset 0 4px 6px rgba(255,255,255,0.6);
         }
-        @keyframes bounce {
-            from { transform: translate(-50%, -50%) scale(1); }
-            to { transform: translate(-50%, -60%) scale(1.1); box-shadow: 0 10px 10px rgba(0,0,0,0.4); }
+        .pawn.can-move::after {
+            content: '';
+            position: absolute;
+            top: -6px; left: -6px; right: -6px; bottom: -6px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            animation: pulse-ring 1s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        .jumping {
+            animation: jump-arc 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        @keyframes jump-arc {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -80%) scale(1.3); }
+            100% { transform: translate(-50%, -50%) scale(1); }
         }
 
         #dice-zone {
-            margin-top: 30px;
+            margin-top: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
+            height: 100px;
         }
         .dice-btn {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             border-radius: 15px;
-            background: white;
+            background: linear-gradient(135deg, #ffffff, #e0e0e0);
             color: black;
-            font-size: 40px;
+            font-size: 30px;
+            font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 0 #ccc, 0 15px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 6px 0 #999, 0 15px 20px rgba(0,0,0,0.5);
             cursor: pointer;
             user-select: none;
             transition: 0.1s;
         }
         .dice-btn:active {
-            transform: translateY(8px);
-            box-shadow: 0 0px 0 #ccc, 0 5px 10px rgba(0,0,0,0.4);
+            transform: translateY(6px);
+            box-shadow: 0 0px 0 #999, 0 5px 10px rgba(0,0,0,0.5);
         }
         .dice-btn.my-turn {
-            animation: pulse 1.5s infinite;
+            animation: dice-pulse 1.5s infinite;
         }
-        @keyframes pulse {
-            0% { box-shadow: 0 8px 0 #ccc, 0 0 0 0 rgba(255,255,255,0.7); }
-            70% { box-shadow: 0 8px 0 #ccc, 0 0 0 20px rgba(255,255,255,0); }
-            100% { box-shadow: 0 8px 0 #ccc, 0 0 0 0 rgba(255,255,255,0); }
+        @keyframes dice-pulse {
+            0% { box-shadow: 0 6px 0 #999, 0 0 0 0 rgba(0, 210, 255, 0.7); }
+            70% { box-shadow: 0 6px 0 #999, 0 0 0 20px rgba(0, 210, 255, 0); }
+            100% { box-shadow: 0 6px 0 #999, 0 0 0 0 rgba(0, 210, 255, 0); }
         }
         .rolling {
-            animation: shake 0.5s infinite;
+            animation: shake 0.4s infinite;
         }
         @keyframes shake {
             0% { transform: rotate(0deg) scale(1.1); }
-            25% { transform: rotate(15deg) scale(1.1); }
+            25% { transform: rotate(20deg) scale(1.1); }
             50% { transform: rotate(0deg) scale(1.1); }
-            75% { transform: rotate(-15deg) scale(1.1); }
+            75% { transform: rotate(-20deg) scale(1.1); }
             100% { transform: rotate(0deg) scale(1.1); }
+        }
+        
+        .x2-active {
+            color: #ffb75e !important;
+            text-shadow: 0 0 10px #ffb75e;
         }
     </style>
 </head>
 <body>
 
     <div id="setup-screen" class="screen active">
-        <h1 style="font-size: 40px; text-shadow: 0 5px 10px rgba(0,0,0,0.3); margin-bottom: 40px;">LUDO PRO</h1>
+        <h1 style="font-size: 40px; text-shadow: 0 5px 15px var(--blue); margin-bottom: 30px;">LUDO <br>WORLD MINI</h1>
         <div class="card">
             <h3 style="margin-top:0;">Host a Game</h3>
             <p style="opacity: 0.8; font-size: 14px;">Share your ID with a friend:</p>
             <p><span id="my-peer-id" class="highlight">Generating ID...</span></p>
             
-            <hr style="border:0; border-top: 1px solid rgba(255,255,255,0.2); margin: 25px 0;">
+            <hr style="border:0; border-top: 1px solid rgba(255,255,255,0.1); margin: 25px 0;">
             
             <h3 style="margin-top:0;">Join a Game</h3>
             <input type="text" id="target-id" placeholder="Friend's ID">
@@ -277,103 +313,116 @@
     <div id="game-screen" class="screen">
         <div id="game-header">
             <div class="player-card" id="p1-card">
-                <div class="player-avatar" style="background: var(--blue)"></div>
-                <span>Blue (P1)</span>
+                <div class="player-avatar" style="background: var(--blue); color: var(--blue)"></div>
+                <span>Blue</span>
             </div>
             <div id="status-text">Waiting...</div>
             <div class="player-card" id="p2-card">
-                <span>Green (P2)</span>
-                <div class="player-avatar" style="background: var(--green)"></div>
+                <span>Green</span>
+                <div class="player-avatar" style="background: var(--green); color: var(--green)"></div>
             </div>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; width:100%; padding: 0 20px; box-sizing: border-box; margin-bottom:5px; font-weight:bold; font-size:14px;">
+            <span style="color:var(--blue)">SCORE: <span id="p1-score">0</span>/3</span>
+            <span style="color:var(--green)">SCORE: <span id="p2-score">0</span>/3</span>
         </div>
         
         <div id="board-container">
             <div id="board"></div>
+            
+            <div id="target-ui" style="display:none; flex-direction:column; align-items:center; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); padding:20px; border-radius:15px; border:2px solid var(--blue); box-shadow: 0 0 30px rgba(0,0,0,0.8); z-index:200; backdrop-filter: blur(10px);">
+                <h3 style="margin:0 0 15px 0; color:var(--blue);">🎯 Choose Roll</h3>
+                <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: center; width: 160px;">
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(1)">1</button>
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(2)">2</button>
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(3)">3</button>
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(4)">4</button>
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(5)">5</button>
+                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(6)">6</button>
+                </div>
+            </div>
+            <div id="win-ui" style="display:none; flex-direction:column; align-items:center; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.9); padding:30px; border-radius:20px; border:3px solid var(--green); box-shadow: 0 0 50px var(--green); z-index:300;">
+                <h1 id="win-msg" style="margin:0; color:var(--green); text-shadow: 0 0 20px currentColor;">YOU WIN!</h1>
+                <button class="btn" style="margin-top: 20px;" onclick="location.reload()">Play Again</button>
+            </div>
         </div>
         
         <div id="dice-zone">
             <div id="dice" class="dice-btn" onclick="rollDice()">🎲</div>
-            <div style="font-size: 12px; opacity: 0.8;">Tap to Roll</div>
+            <div id="dice-label" style="font-size: 12px; opacity: 0.8;">Tap to Roll</div>
         </div>
     </div>
 
     <script>
-        // 1. Board Coordinates Logic
-        const globalPath = [];
-        // Bottom arm up
-        for(let i=14; i>=9; i--) globalPath.push({x:6, y:i}); // 0-5
-        // Left arm left
-        for(let i=5; i>=0; i--) globalPath.push({x:i, y:8}); // 6-11
-        // Left arm up
-        globalPath.push({x:0, y:7}); // 12
-        globalPath.push({x:0, y:6}); // 13
-        // Left arm right
-        for(let i=1; i<=5; i++) globalPath.push({x:i, y:6}); // 14-18
-        // Top arm up
-        for(let i=5; i>=0; i--) globalPath.push({x:6, y:i}); // 19-24
-        // Top arm right
-        globalPath.push({x:7, y:0}); // 25
-        globalPath.push({x:8, y:0}); // 26
-        // Top arm down
-        for(let i=1; i<=5; i++) globalPath.push({x:8, y:i}); // 27-31
-        // Right arm right
-        for(let i=9; i<=14; i++) globalPath.push({x:i, y:6}); // 32-37
-        // Right arm down
-        globalPath.push({x:14, y:7}); // 38
-        globalPath.push({x:14, y:8}); // 39
-        // Right arm left
-        for(let i=13; i>=9; i--) globalPath.push({x:i, y:8}); // 40-44
-        // Bottom arm down
-        for(let i=9; i<=14; i++) globalPath.push({x:8, y:i}); // 45-50
-        // Bottom arm left
-        globalPath.push({x:7, y:14}); // 51
-
-        const homePaths = {
-            blue: [{x:7, y:13}, {x:7, y:12}, {x:7, y:11}, {x:7, y:10}, {x:7, y:9}],
-            red: [{x:1, y:7}, {x:2, y:7}, {x:3, y:7}, {x:4, y:7}, {x:5, y:7}],
-            green: [{x:7, y:1}, {x:7, y:2}, {x:7, y:3}, {x:7, y:4}, {x:7, y:5}],
-            yellow: [{x:13, y:7}, {x:12, y:7}, {x:11, y:7}, {x:10, y:7}, {x:9, y:7}]
-        };
+        // 7x7 Mini Map coordinates
+        const globalPath = [
+            {x:4, y:6}, {x:4, y:5}, // 0, 1 (Bottom)
+            {x:5, y:4}, {x:6, y:4}, // 2, 3 (Right)
+            {x:6, y:3},             // 4
+            {x:6, y:2}, {x:5, y:2}, // 5, 6
+            {x:4, y:1}, {x:4, y:0}, // 7, 8 (Top)
+            {x:3, y:0},             // 9
+            {x:2, y:0}, {x:2, y:1}, // 10, 11
+            {x:1, y:2}, {x:0, y:2}, // 12, 13 (Left)
+            {x:0, y:3},             // 14
+            {x:0, y:4}, {x:1, y:4}, // 15, 16
+            {x:2, y:5}, {x:2, y:6}, // 17, 18
+            {x:3, y:6}              // 19
+        ];
 
         const colors = { p1: 'blue', p2: 'green' };
-        const startIndices = { blue: 1, red: 14, green: 27, yellow: 40 };
-        
-        // Exact pixel offsets for 4 circles in each base (15px padding, 57x57 quadrants)
-        const offsets = [
-            {x: 43.5, y: 43.5}, {x: 100.5, y: 43.5}, 
-            {x: 43.5, y: 100.5}, {x: 100.5, y: 100.5}
-        ];
-        const basePositions = {
-            red: offsets.map(o => ({x: o.x, y: o.y})),
-            green: offsets.map(o => ({x: o.x + 216, y: o.y})),
-            blue: offsets.map(o => ({x: o.x, y: o.y + 216})),
-            yellow: offsets.map(o => ({x: o.x + 216, y: o.y + 216}))
-        };
+        // Blue (Bottom-Left) starts at index 16 (1,4)
+        // Green (Top-Right) starts at index 6 (5,2)
+        const startIndices = { blue: 16, green: 6 };
 
         let peer, conn, myRole;
         let currentDice = 0;
+        
         let state = {
             turn: 1,
-            p1: { pions: [-1, -1, -1, -1], score: 0 },
-            p2: { pions: [-1, -1, -1, -1], score: 0 },
-            lastDice: 0
+            // Fast start: [0, 0, -1, -1]
+            p1: { pions: [0, 0, -1, -1], score: 0, shield: [-1,-1,-1,-1], hasX2: false, hasTarget: false },
+            p2: { pions: [0, 0, -1, -1], score: 0, shield: [-1,-1,-1,-1], hasX2: false, hasTarget: false },
+            powers: [
+                { type: '🛡️', pos: 4 },
+                { type: '🚀', pos: 10 },
+                { type: '🎯', pos: 18 }
+            ],
+            powerTimer: 0,
+            lastDice: 0,
+            winner: 0
         };
 
-        // 2. Setup Board UI
+        // UI local copy to detect changes for animation
+        let localState = JSON.parse(JSON.stringify(state));
+
+        function getCenter(elId) {
+            let el = document.getElementById(elId);
+            if (!el) return {x: 165, y: 165};
+            let boardRect = document.getElementById('board').getBoundingClientRect();
+            let elRect = el.getBoundingClientRect();
+            return {
+                x: elRect.left - boardRect.left + elRect.width/2,
+                y: elRect.top - boardRect.top + elRect.height/2
+            };
+        }
+
         function drawBoard() {
             const board = document.getElementById('board');
+            board.innerHTML = '';
             
-            const bases = [
+            const allBases = [
                 { c: 'red', r: 1, col: 1, bg: 'var(--red)' },
-                { c: 'green', r: 1, col: 10, bg: 'var(--green)' },
-                { c: 'blue', r: 10, col: 1, bg: 'var(--blue)' },
-                { c: 'yellow', r: 10, col: 10, bg: 'var(--yellow)' }
+                { c: 'green', r: 1, col: 6, bg: 'var(--green)' },
+                { c: 'blue', r: 6, col: 1, bg: 'var(--blue)' },
+                { c: 'yellow', r: 6, col: 6, bg: 'var(--yellow)' }
             ];
             
-            bases.forEach(b => {
+            allBases.forEach(b => {
                 const baseEl = document.createElement('div');
-                baseEl.className = 'base';
-                baseEl.style.gridArea = `${b.r} / ${b.col} / ${b.r + 6} / ${b.col + 6}`;
+                baseEl.className = `base base-${b.c}`;
+                baseEl.style.gridArea = `${b.r} / ${b.col} / ${b.r + 2} / ${b.col + 2}`;
                 baseEl.style.backgroundColor = b.bg;
                 
                 const inner = document.createElement('div');
@@ -381,6 +430,7 @@
                 for(let i=0; i<4; i++) {
                     const circle = document.createElement('div');
                     circle.className = 'base-circle';
+                    circle.id = `base-${b.c}-${i}`;
                     inner.appendChild(circle);
                 }
                 baseEl.appendChild(inner);
@@ -389,43 +439,37 @@
 
             const center = document.createElement('div');
             center.className = 'home-center';
-            center.style.gridArea = '7 / 7 / 10 / 10';
+            center.style.gridArea = '3 / 3 / 6 / 6';
+            center.id = 'home-center';
+            center.innerText = '★';
             board.appendChild(center);
 
             globalPath.forEach((p, index) => {
                 const cell = document.createElement('div');
+                cell.id = `cell-${index}`;
                 cell.className = 'path-cell';
                 cell.style.gridColumn = p.x + 1;
                 cell.style.gridRow = p.y + 1;
                 
-                if (index === 1) cell.style.backgroundColor = 'var(--blue)';
-                if (index === 14) cell.style.backgroundColor = 'var(--red)';
-                if (index === 27) cell.style.backgroundColor = 'var(--green)';
-                if (index === 40) cell.style.backgroundColor = 'var(--yellow)';
-                
-                if ([1, 9, 14, 22, 27, 35, 40, 48].includes(index)) {
-                    cell.innerHTML = '⭐';
-                    cell.classList.add('safe-zone');
-                }
+                if (index === 16) cell.style.backgroundColor = 'rgba(0, 210, 255, 0.3)';
+                if (index === 6) cell.style.backgroundColor = 'rgba(0, 255, 135, 0.3)';
                 
                 board.appendChild(cell);
             });
 
-            const drawHomePath = (pathArr, colorCode) => {
-                pathArr.forEach(p => {
-                    const cell = document.createElement('div');
-                    cell.className = 'path-cell';
-                    cell.style.gridColumn = p.x + 1;
-                    cell.style.gridRow = p.y + 1;
-                    cell.style.backgroundColor = colorCode;
-                    board.appendChild(cell);
-                });
-            };
-            
-            drawHomePath(homePaths.blue, 'var(--blue)');
-            drawHomePath(homePaths.red, 'var(--red)');
-            drawHomePath(homePaths.green, 'var(--green)');
-            drawHomePath(homePaths.yellow, 'var(--yellow)');
+            const homeCells = [
+                { c: 'blue', x: 1, y: 3, bg: 'rgba(0, 210, 255, 0.5)' },
+                { c: 'green', x: 5, y: 3, bg: 'rgba(0, 255, 135, 0.5)' }
+            ];
+            homeCells.forEach(hc => {
+                const cell = document.createElement('div');
+                cell.id = `home-${hc.c}-0`;
+                cell.className = 'path-cell';
+                cell.style.gridColumn = hc.x + 1;
+                cell.style.gridRow = hc.y + 1;
+                cell.style.backgroundColor = hc.bg;
+                board.appendChild(cell);
+            });
         }
 
         function createPawns() {
@@ -447,7 +491,6 @@
             }
         }
 
-        // 3. Logic & P2P Networking
         window.onload = () => {
             peer = new Peer();
             peer.on('open', id => {
@@ -477,26 +520,37 @@
             document.getElementById('setup-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
             
+            drawBoard();
+            createPawns();
+
             conn.on('data', d => {
                 state = d;
                 currentDice = 0; 
-                updateUI();
+                processUIUpdate();
             });
             
-            drawBoard();
-            createPawns();
-            updateUI();
+            setTimeout(() => {
+                processUIUpdate(true);
+            }, 500); // Wait for layout to settle
         }
 
         function getDiceFace(d) {
+            if (d > 6) return d; // Show number for >6 (x2 power)
             const faces = ["🎲", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
             return faces[d] || "🎲";
         }
 
         function rollDice() {
-            if (state.turn !== myRole || currentDice !== 0) return;
+            if (state.turn !== myRole || currentDice !== 0 || state[`p${myRole}`].hasTarget || state.winner > 0) return;
             
             let d = Math.floor(Math.random() * 6) + 1;
+            
+            let pData = state[`p${myRole}`];
+            if (pData.hasX2) {
+                d *= 2;
+                pData.hasX2 = false;
+            }
+            
             currentDice = d;
             state.lastDice = d;
             
@@ -504,30 +558,48 @@
             diceEl.innerText = '🎲';
             diceEl.classList.add('rolling');
             diceEl.classList.remove('my-turn');
+            diceEl.classList.remove('x2-active');
             
             setTimeout(() => {
                 diceEl.classList.remove('rolling');
-                diceEl.innerText = getDiceFace(d);
-                
-                let pData = state[`p${myRole}`];
-                let canMove = false;
-                pData.pions.forEach(pos => {
-                    if (pos === -1 && d === 6) canMove = true;
-                    if (pos >= 0 && pos + d <= 56) canMove = true;
-                });
-                
-                if (!canMove) {
-                    setTimeout(() => {
-                        finishMove(d === 6);
-                    }, 1000);
-                } else {
-                    updateUI();
-                }
-            }, 500);
+                processRoll(d);
+            }, 400);
+        }
+
+        function chooseDice(n) {
+            state[`p${myRole}`].hasTarget = false;
+            let d = n;
+            if (state[`p${myRole}`].hasX2) {
+                d *= 2;
+                state[`p${myRole}`].hasX2 = false;
+            }
+            currentDice = d;
+            state.lastDice = d;
+            processRoll(d);
+        }
+
+        function processRoll(d) {
+            const diceEl = document.getElementById('dice');
+            diceEl.innerText = getDiceFace(d);
+            
+            let pData = state[`p${myRole}`];
+            let canMove = false;
+            pData.pions.forEach(pos => {
+                if (pos === -1 && (d === 6 || d === 12)) canMove = true;
+                if (pos >= 0 && pos + d <= 20) canMove = true;
+            });
+            
+            sync(); // Sync the roll so opponent sees it
+            
+            if (!canMove) {
+                setTimeout(() => {
+                    finishMove(d === 6 || d === 12);
+                }, 1000);
+            }
         }
 
         function moveSelectedPion(idx) {
-            if (state.turn !== myRole || currentDice === 0) return;
+            if (state.turn !== myRole || currentDice === 0 || state.winner > 0) return;
             
             let pKey = `p${myRole}`;
             let pData = state[pKey];
@@ -535,10 +607,10 @@
             
             let isValid = false;
             let newPos = pos;
-            if (pos === -1 && currentDice === 6) {
+            if (pos === -1 && (currentDice === 6 || currentDice === 12)) {
                 isValid = true;
                 newPos = 0; 
-            } else if (pos >= 0 && pos + currentDice <= 56) {
+            } else if (pos >= 0 && pos + currentDice <= 20) {
                 isValid = true;
                 newPos = pos + currentDice;
             }
@@ -546,38 +618,95 @@
             if (!isValid) return;
             
             pData.pions[idx] = newPos;
-            
             let extraRoll = false;
             let opRole = myRole === 1 ? 2 : 1;
             let opKey = `p${opRole}`;
             let opData = state[opKey];
             
-            if (newPos >= 0 && newPos <= 50) {
-                let globalIndex = (startIndices[colors[pKey]] + newPos) % 52;
-                let isSafe = [1, 9, 14, 22, 27, 35, 40, 48].includes(globalIndex);
+            // 1. Check Collisions (Eating)
+            if (newPos >= 0 && newPos <= 18) {
+                let myGlobalIndex = (startIndices[colors[pKey]] + newPos) % 20;
                 
-                if (!isSafe) {
-                    opData.pions.forEach((oPos, oIdx) => {
-                        if (oPos >= 0 && oPos <= 50) {
-                            let oGlobalIndex = (startIndices[colors[opKey]] + oPos) % 52;
-                            if (globalIndex === oGlobalIndex) {
-                                opData.pions[oIdx] = -1;
+                opData.pions.forEach((oPos, oIdx) => {
+                    if (oPos >= 0 && oPos <= 18) {
+                        let oGlobalIndex = (startIndices[colors[opKey]] + oPos) % 20;
+                        if (myGlobalIndex === oGlobalIndex) {
+                            if (opData.shield[oIdx] === 1) {
+                                opData.shield[oIdx] = -1; // Break shield
+                            } else {
+                                opData.pions[oIdx] = -1; // Eat
+                                pData.score += 1;
                                 extraRoll = true;
                             }
                         }
-                    });
+                    }
+                });
+
+                // 2. Check Power-ups
+                let pwIndex = state.powers.findIndex(p => p.pos === myGlobalIndex);
+                if (pwIndex !== -1) {
+                    let pw = state.powers[pwIndex];
+                    if (pw.type === '🛡️') pData.shield[idx] = 1;
+                    else if (pw.type === '🚀') pData.hasX2 = true;
+                    else if (pw.type === '🎯') pData.hasTarget = true;
+                    
+                    state.powers[pwIndex].pos = -1;
+                    state.powerTimer = 0; // trigger respawn sequence
                 }
             }
             
-            if (newPos === 56) extraRoll = true;
-            if (currentDice === 6) extraRoll = true;
+            if (newPos === 20) {
+                pData.score += 1;
+                extraRoll = true;
+            }
             
-            finishMove(extraRoll);
+            if (currentDice === 6 || currentDice === 12) extraRoll = true;
+            
+            if (pData.score >= 3) {
+                state.winner = myRole;
+            }
+            
+            // Animate locally first
+            animatePawn(pKey, idx, pos, newPos, () => {
+                finishMove(extraRoll);
+            });
+            // Update local state instantly so animation doesn't re-trigger
+            localState[pKey].pions[idx] = newPos;
         }
 
         function finishMove(extraRoll = false) {
+            if (state.winner > 0) {
+                sync();
+                return;
+            }
+
             if (!extraRoll) {
                 state.turn = state.turn === 1 ? 2 : 1;
+                state.powerTimer++;
+                
+                // Respawn powers
+                if (state.powerTimer >= 2) {
+                    state.powers.forEach(pw => {
+                        if (pw.pos === -1) {
+                            let emptyCells = [];
+                            for(let i=0; i<20; i++) {
+                                let hasPawn = false;
+                                ['p1', 'p2'].forEach(pk => {
+                                    state[pk].pions.forEach(p => {
+                                        if (p >= 0 && p <= 18 && (startIndices[colors[pk]] + p)%20 === i) hasPawn = true;
+                                    });
+                                });
+                                if (!hasPawn && !state.powers.some(p => p.pos === i)) {
+                                    emptyCells.push(i);
+                                }
+                            }
+                            if (emptyCells.length > 0) {
+                                pw.pos = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                            }
+                        }
+                    });
+                    state.powerTimer = 0;
+                }
             }
             currentDice = 0;
             sync();
@@ -585,47 +714,42 @@
 
         function sync() {
             if(conn) conn.send(state);
-            updateUI();
+            processUIUpdate();
         }
 
-        function getPawnCoordinates(color, index, pos, currentState) {
+        function getPawnCoordinates(color, index, pos) {
             if (pos === -1) {
-                return basePositions[color][index];
+                return getCenter(`base-${color}-${index}`);
             }
-            if (pos === 56) {
-                return { x: 180 + (index * 10 - 15), y: 180 + (index * 10 - 15), hidden: false };
-            }
-            
-            let gx, gy;
-            if (pos >= 0 && pos <= 50) {
-                let globalIndex = (startIndices[color] + pos) % 52;
-                gx = globalPath[globalIndex].x;
-                gy = globalPath[globalIndex].y;
-            } else if (pos >= 51 && pos <= 55) {
-                gx = homePaths[color][pos - 51].x;
-                gy = homePaths[color][pos - 51].y;
+            if (pos === 20) {
+                let hc = getCenter('home-center');
+                return { x: hc.x + (index * 8 - 12), y: hc.y + (index * 8 - 12) };
             }
             
-            let px = gx * 24 + 12;
-            let py = gy * 24 + 12;
+            let cellId = '';
+            let globalIndex = -1;
+            if (pos >= 0 && pos <= 18) {
+                globalIndex = (startIndices[color] + pos) % 20;
+                cellId = `cell-${globalIndex}`;
+            } else if (pos === 19) {
+                cellId = `home-${color}-0`;
+            }
             
+            let coords = getCenter(cellId);
+            
+            // Add offsets for stacking
             let overlappingPawns = [];
-            if (pos >= 0 && pos <= 55) {
-                let myGlobalIndex = (pos >= 0 && pos <= 50) ? (startIndices[color] + pos) % 52 : -1;
-                
+            if (pos >= 0 && pos <= 19) {
                 ['p1', 'p2'].forEach(pKey => {
                     let pColor = pKey === 'p1' ? 'blue' : 'green';
-                    currentState[pKey].pions.forEach((oPos, oIndex) => {
-                        let isOverlap = false;
-                        if (oPos >= 0 && oPos <= 50 && myGlobalIndex !== -1) {
-                            let oGlobalIndex = (startIndices[pColor] + oPos) % 52;
-                            if (myGlobalIndex === oGlobalIndex) isOverlap = true;
-                        } else if (pos >= 51 && pos <= 55 && oPos === pos && color === pColor) {
-                            isOverlap = true;
-                        }
-                        
-                        if (isOverlap) {
+                    state[pKey].pions.forEach((oPos, oIndex) => {
+                        if (oPos === pos && color === pColor && pos === 19) {
                             overlappingPawns.push({color: pColor, index: oIndex});
+                        } else if (oPos >= 0 && oPos <= 18 && globalIndex !== -1) {
+                            let oGlobalIndex = (startIndices[pColor] + oPos) % 20;
+                            if (globalIndex === oGlobalIndex) {
+                                overlappingPawns.push({color: pColor, index: oIndex});
+                            }
                         }
                     });
                 });
@@ -633,63 +757,161 @@
             
             if (overlappingPawns.length > 1) {
                 let myOverlapIndex = overlappingPawns.findIndex(p => p.color === color && p.index === index);
-                const offsetAmt = 5;
+                const offsetAmt = 6;
                 const offsetArr = [
                     {dx:-offsetAmt, dy:-offsetAmt}, {dx:offsetAmt, dy:-offsetAmt}, 
                     {dx:-offsetAmt, dy:offsetAmt}, {dx:offsetAmt, dy:offsetAmt}
                 ];
                 let myOffset = offsetArr[myOverlapIndex % 4] || {dx:0, dy:0};
-                px += myOffset.dx;
-                py += myOffset.dy;
+                coords.x += myOffset.dx;
+                coords.y += myOffset.dy;
             }
             
-            return {x: px, y: py};
+            return coords;
         }
 
-        function updateUI() {
+        function animatePawn(pKey, idx, oldPos, newPos, onComplete) {
+            if (oldPos === -1 || newPos === -1 || newPos === 20 || newPos - oldPos > 6) {
+                if(onComplete) onComplete();
+                return;
+            }
+            
+            let path = [];
+            for (let p = oldPos + 1; p <= newPos; p++) path.push(p);
+            
+            const el = document.getElementById(`${pKey}-${idx}`);
+            let step = 0;
+            
+            function next() {
+                if (step >= path.length) {
+                    if(onComplete) onComplete();
+                    return;
+                }
+                let p = path[step];
+                // Render at step
+                localState[pKey].pions[idx] = p; // update local to reflect overlap math
+                let coords = getPawnCoordinates(colors[pKey], idx, p);
+                el.style.left = coords.x + 'px';
+                el.style.top = coords.y + 'px';
+                
+                el.classList.add('jumping');
+                setTimeout(() => el.classList.remove('jumping'), 180);
+                
+                step++;
+                setTimeout(next, 200);
+            }
+            next();
+        }
+
+        function processUIUpdate(forceSnap = false) {
             ['p1', 'p2'].forEach(pKey => {
                 let pColor = pKey === 'p1' ? 'blue' : 'green';
                 state[pKey].pions.forEach((pos, i) => {
                     const el = document.getElementById(`${pKey}-${i}`);
-                    let coords = getPawnCoordinates(pColor, i, pos, state);
+                    let oldPos = localState[pKey].pions[i];
                     
-                    if (coords.hidden) {
-                        el.style.display = 'none';
+                    if (!forceSnap && oldPos !== pos) {
+                        animatePawn(pKey, i, oldPos, pos, () => {
+                            localState[pKey].pions[i] = pos;
+                            renderPawnFinal(pKey, pColor, i, pos, el);
+                        });
                     } else {
-                        el.style.display = 'block';
-                        el.style.left = coords.x + 'px';
-                        el.style.top = coords.y + 'px';
-                        if(pos === 56) el.style.transform = `translate(-50%, -50%) scale(0.6)`;
-                        else el.style.transform = `translate(-50%, -50%) scale(1)`;
+                        localState[pKey].pions[i] = pos;
+                        renderPawnFinal(pKey, pColor, i, pos, el);
                     }
-                    
-                    const isMyTurn = (state.turn === myRole && pKey === `p${myRole}`);
-                    let canMove = false;
-                    if (isMyTurn && currentDice > 0) {
-                        if (pos === -1 && currentDice === 6) canMove = true;
-                        if (pos >= 0 && pos + currentDice <= 56) canMove = true;
-                    }
-                    el.classList.toggle('can-move', canMove);
                 });
             });
 
+            // Scores
+            document.getElementById('p1-score').innerText = state.p1.score;
+            document.getElementById('p2-score').innerText = state.p2.score;
+
+            // Turn UI
             document.getElementById('p1-card').classList.toggle('active-turn', state.turn === 1);
             document.getElementById('p2-card').classList.toggle('active-turn', state.turn === 2);
             
-            let statusText = state.turn === myRole ? "YOUR TURN!" : "Waiting...";
+            let pData = state[`p${myRole}`];
+            
+            if (state.winner > 0) {
+                document.getElementById('win-ui').style.display = 'flex';
+                let winMsg = state.winner === myRole ? "YOU WIN!" : "YOU LOSE!";
+                let winColor = state.winner === 1 ? 'var(--blue)' : 'var(--green)';
+                document.getElementById('win-msg').innerText = winMsg;
+                document.getElementById('win-msg').style.color = winColor;
+                document.getElementById('win-ui').style.borderColor = winColor;
+                document.getElementById('win-ui').style.boxShadow = `0 0 50px ${winColor}`;
+                return;
+            }
+
+            if (state.turn === myRole && pData.hasTarget) {
+                document.getElementById('target-ui').style.display = 'flex';
+                document.getElementById('dice-zone').style.visibility = 'hidden';
+            } else {
+                document.getElementById('target-ui').style.display = 'none';
+                document.getElementById('dice-zone').style.visibility = 'visible';
+            }
+            
+            let statusText = state.turn === myRole ? "YOUR TURN" : "Waiting...";
+            if (state.turn !== myRole && state[`p${state.turn}`].hasTarget) statusText = "Opponent choosing...";
+            
             document.getElementById('status-text').innerText = statusText;
-            document.getElementById('status-text').style.color = state.turn === myRole ? 'var(--green)' : 'white';
+            document.getElementById('status-text').style.color = state.turn === myRole ? (myRole === 1 ? 'var(--blue)' : 'var(--green)') : 'white';
             
             const diceBtn = document.getElementById('dice');
             if (state.lastDice > 0 && currentDice === 0) {
                 diceBtn.innerText = getDiceFace(state.lastDice);
             }
             
-            if (state.turn === myRole && currentDice === 0) {
+            if (state.turn === myRole && currentDice === 0 && !pData.hasTarget) {
                 diceBtn.classList.add('my-turn');
+                document.getElementById('dice-label').innerText = "Tap to Roll";
             } else {
                 diceBtn.classList.remove('my-turn');
+                document.getElementById('dice-label').innerText = "";
             }
+            
+            if (pData.hasX2) diceBtn.classList.add('x2-active');
+            else diceBtn.classList.remove('x2-active');
+
+            // Render Powers
+            document.querySelectorAll('.power-icon').forEach(e => e.remove());
+            state.powers.forEach(pw => {
+                if (pw.pos !== -1) {
+                    let cell = document.getElementById(`cell-${pw.pos}`);
+                    if (cell) {
+                        let el = document.createElement('div');
+                        el.className = 'power-icon';
+                        el.innerText = pw.type;
+                        cell.appendChild(el);
+                    }
+                }
+            });
+        }
+
+        function renderPawnFinal(pKey, pColor, i, pos, el) {
+            let coords = getPawnCoordinates(pColor, i, pos);
+            el.style.left = coords.x + 'px';
+            el.style.top = coords.y + 'px';
+            
+            if(pos === 20) el.style.transform = `translate(-50%, -50%) scale(0.6)`;
+            else el.style.transform = `translate(-50%, -50%) scale(1)`;
+
+            // Shield visual
+            if (state[pKey].shield[i] === 1) {
+                el.style.border = '2px solid #ffd700';
+                el.style.boxShadow = '0 0 10px #ffd700, inset 0 4px 6px rgba(255,255,255,0.4)';
+            } else {
+                el.style.border = '1px solid rgba(255,255,255,0.2)';
+                el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.8), inset 0 4px 6px rgba(255,255,255,0.4)';
+            }
+            
+            const isMyTurn = (state.turn === myRole && pKey === `p${myRole}`);
+            let canMove = false;
+            if (isMyTurn && currentDice > 0) {
+                if (pos === -1 && (currentDice === 6 || currentDice === 12)) canMove = true;
+                if (pos >= 0 && pos + currentDice <= 20) canMove = true;
+            }
+            el.classList.toggle('can-move', canMove);
         }
     </script>
 </body>
