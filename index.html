@@ -1,254 +1,696 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ludo Pro 1vs1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ludo Pro</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --blue: #00d2ff; --green: #91ff00; --red: #ff416c; --yellow: #ffb75e; --bg: #0f2027; }
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; }
-        
-        #game-header { text-align: center; margin: 15px; }
-        #status-bar { font-size: 14px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; margin-bottom: 10px; }
-
-        #board { 
-            width: 360px; height: 360px; background: rgba(255, 255, 255, 0.05); position: relative; 
-            border: 2px solid rgba(255,255,255,0.1); border-radius: 20px; backdrop-filter: blur(10px);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        :root {
+            --blue: #00d2ff;
+            --red: #ff416c;
+            --green: #00b09b;
+            --yellow: #ffb75e;
+        }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #67B26F, #4ca2cd);
+            color: white;
+            min-height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100vh;
+            max-width: 400px;
+        }
+        .screen.active {
+            display: flex;
+        }
+        #setup-screen {
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: none;
+            border-radius: 10px;
+            outline: none;
+            font-size: 16px;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.9);
+        }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(45deg, #FF512F, #DD2476);
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(221, 36, 118, 0.4);
+            transition: 0.2s;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .highlight {
+            font-weight: bold;
+            color: #ffb75e;
+            user-select: all;
         }
 
-        .case { 
-            position: absolute; width: 30px; height: 30px; border: 1px solid rgba(255,255,255,0.05); 
-            display: flex; align-items: center; justify-content: center; font-size: 8px; border-radius: 4px;
+        #game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 10px;
+            box-sizing: border-box;
         }
-        .safe { background: rgba(255, 215, 0, 0.3); border: 1px solid gold; }
-
-        .pion { 
-            position: absolute; width: 22px; height: 22px; border-radius: 50%; 
-            border: 2px solid white; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); 
-            z-index: 100; cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        .player-card {
+            background: rgba(0,0,0,0.5);
+            padding: 8px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 12px;
+            transition: 0.3s;
         }
-        .can-move { animation: pulse 0.8s infinite; border: 3px solid #fff; scale: 1.2; z-index: 101; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(255,255,255,0.7); } 100% { box-shadow: 0 0 0 15px rgba(255,255,255,0); } }
+        .player-avatar {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .active-turn {
+            box-shadow: 0 0 15px rgba(255,255,255,0.8);
+            border: 1px solid white;
+            transform: scale(1.05);
+        }
+        #status-text {
+            font-weight: bold;
+            font-size: 12px;
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+        }
 
-        .power-icon { position: absolute; font-size: 16px; pointer-events: none; z-index: 10; }
+        #board-container {
+            padding: 10px;
+            background: linear-gradient(45deg, #8B5A2B, #A0522D);
+            border-radius: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            width: 360px;
+            height: 360px;
+            background: #fff;
+            gap: 1px;
+            border: 2px solid #5c3a21;
+            position: relative;
+        }
+        .base {
+            position: relative;
+            padding: 15px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .base-inner {
+            width: 100%;
+            height: 100%;
+            background: white;
+            border-radius: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            place-items: center;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        .base-circle {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.1);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .home-center {
+            background: conic-gradient(from 45deg,
+                var(--green) 0deg 90deg,
+                var(--yellow) 90deg 180deg,
+                var(--blue) 180deg 270deg,
+                var(--red) 270deg 360deg
+            );
+            border: 1px solid #ccc;
+        }
+        .path-cell {
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: black;
+        }
+        .safe-zone {
+            font-size: 14px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.8);
+        }
 
-        #ui-panel { width: 360px; margin-top: 20px; text-align: center; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 20px; }
-        .dice-box { font-size: 40px; margin: 10px; cursor: pointer; display: inline-block; transition: 0.3s; }
-        .dice-box:active { transform: scale(0.8) rotate(15deg); }
-        .btn { padding: 8px 15px; border: none; border-radius: 10px; background: var(--blue); color: white; cursor: pointer; }
-        
-        .base-p1, .base-p2 { position: absolute; width: 60px; height: 60px; border: 2px dashed rgba(255,255,255,0.2); border-radius: 10px; }
-        .base-p1 { left: 10px; top: 150px; } .base-p2 { right: 10px; top: 150px; }
+        .pawn {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 -4px 6px rgba(0,0,0,0.2), inset 0 4px 6px rgba(255,255,255,0.6);
+            transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.5);
+            pointer-events: none;
+        }
+        .pawn.can-move {
+            animation: bounce 0.6s infinite alternate;
+            z-index: 101;
+            border: 2px solid white;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        @keyframes bounce {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -60%) scale(1.1); box-shadow: 0 10px 10px rgba(0,0,0,0.4); }
+        }
+
+        #dice-zone {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .dice-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 15px;
+            background: white;
+            color: black;
+            font-size: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 0 #ccc, 0 15px 20px rgba(0,0,0,0.4);
+            cursor: pointer;
+            user-select: none;
+            transition: 0.1s;
+        }
+        .dice-btn:active {
+            transform: translateY(8px);
+            box-shadow: 0 0px 0 #ccc, 0 5px 10px rgba(0,0,0,0.4);
+        }
+        .dice-btn.my-turn {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 8px 0 #ccc, 0 0 0 0 rgba(255,255,255,0.7); }
+            70% { box-shadow: 0 8px 0 #ccc, 0 0 0 20px rgba(255,255,255,0); }
+            100% { box-shadow: 0 8px 0 #ccc, 0 0 0 0 rgba(255,255,255,0); }
+        }
+        .rolling {
+            animation: shake 0.5s infinite;
+        }
+        @keyframes shake {
+            0% { transform: rotate(0deg) scale(1.1); }
+            25% { transform: rotate(15deg) scale(1.1); }
+            50% { transform: rotate(0deg) scale(1.1); }
+            75% { transform: rotate(-15deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1.1); }
+        }
     </style>
 </head>
 <body>
 
-    <div id="game-header">
-        <h2>LUDO MINI 1VS1</h2>
-        <div id="status-bar">Attente de connexion...</div>
-        <div id="conn-controls">
-            <input type="text" id="target-id" style="padding:5px; border-radius:5px;" placeholder="ID de l'ami">
-            <button class="btn" onclick="joinGame()">Connecter</button>
-            <p style="font-size: 10px; opacity: 0.6; margin-top:5px;">Ton ID: <span id="my-peer-id">...</span></p>
+    <div id="setup-screen" class="screen active">
+        <h1 style="font-size: 40px; text-shadow: 0 5px 10px rgba(0,0,0,0.3); margin-bottom: 40px;">LUDO PRO</h1>
+        <div class="card">
+            <h3 style="margin-top:0;">Host a Game</h3>
+            <p style="opacity: 0.8; font-size: 14px;">Share your ID with a friend:</p>
+            <p><span id="my-peer-id" class="highlight">Generating ID...</span></p>
+            
+            <hr style="border:0; border-top: 1px solid rgba(255,255,255,0.2); margin: 25px 0;">
+            
+            <h3 style="margin-top:0;">Join a Game</h3>
+            <input type="text" id="target-id" placeholder="Friend's ID">
+            <button class="btn" onclick="joinGame()">Connect & Play</button>
         </div>
     </div>
 
-    <div id="board">
-        <div class="base-p1" title="Base Bleu"></div>
-        <div class="base-p2" title="Base Vert"></div>
+    <div id="game-screen" class="screen">
+        <div id="game-header">
+            <div class="player-card" id="p1-card">
+                <div class="player-avatar" style="background: var(--blue)"></div>
+                <span>Blue (P1)</span>
+            </div>
+            <div id="status-text">Waiting...</div>
+            <div class="player-card" id="p2-card">
+                <span>Green (P2)</span>
+                <div class="player-avatar" style="background: var(--green)"></div>
+            </div>
         </div>
-
-    <div id="ui-panel">
-        <div id="score-text">P1: 0 | P2: 0</div>
-        <div id="dice-container" class="dice-box" onclick="rollDice()">🎲</div>
-        <p id="instruction">Appuie sur le dé</p>
-        <div id="active-power" style="font-size: 12px; color: var(--yellow);"></div>
+        
+        <div id="board-container">
+            <div id="board"></div>
+        </div>
+        
+        <div id="dice-zone">
+            <div id="dice" class="dice-btn" onclick="rollDice()">🎲</div>
+            <div style="font-size: 12px; opacity: 0.8;">Tap to Roll</div>
+        </div>
     </div>
 
-<script>
-    let peer, conn, myRole;
-    let currentDice = 0;
-    const CASE_S = 32;
-    
-    // Chemin simplifié (Le plateau est une boucle de 24 cases)
-    const pathCoords = [];
-    for(let i=0; i<10; i++) pathCoords.push({x: 20 + i*CASE_S, y: 120}); // Aller
-    for(let i=0; i<4; i++) pathCoords.push({x: 308, y: 152 + i*CASE_S}); // Virage
-    for(let i=0; i<10; i++) pathCoords.push({x: 308 - i*CASE_S, y: 280}); // Retour
+    <script>
+        // 1. Board Coordinates Logic
+        const globalPath = [];
+        // Bottom arm up
+        for(let i=14; i>=9; i--) globalPath.push({x:6, y:i}); // 0-5
+        // Left arm left
+        for(let i=5; i>=0; i--) globalPath.push({x:i, y:8}); // 6-11
+        // Left arm up
+        globalPath.push({x:0, y:7}); // 12
+        globalPath.push({x:0, y:6}); // 13
+        // Left arm right
+        for(let i=1; i<=5; i++) globalPath.push({x:i, y:6}); // 14-18
+        // Top arm up
+        for(let i=5; i>=0; i--) globalPath.push({x:6, y:i}); // 19-24
+        // Top arm right
+        globalPath.push({x:7, y:0}); // 25
+        globalPath.push({x:8, y:0}); // 26
+        // Top arm down
+        for(let i=1; i<=5; i++) globalPath.push({x:8, y:i}); // 27-31
+        // Right arm right
+        for(let i=9; i<=14; i++) globalPath.push({x:i, y:6}); // 32-37
+        // Right arm down
+        globalPath.push({x:14, y:7}); // 38
+        globalPath.push({x:14, y:8}); // 39
+        // Right arm left
+        for(let i=13; i>=9; i--) globalPath.push({x:i, y:8}); // 40-44
+        // Bottom arm down
+        for(let i=9; i<=14; i++) globalPath.push({x:8, y:i}); // 45-50
+        // Bottom arm left
+        globalPath.push({x:7, y:14}); // 51
 
-    let state = {
-        turn: 1,
-        p1: { pions: [-1, -1, 0, 0], score: 0, power: null }, // -1 = Base, 0+ = Sur circuit
-        p2: { pions: [-1, -1, 0, 0], score: 0, power: null },
-        powers: [{p: 5, t: '🛡️'}, {p: 12, t: '🚀'}, {p: 18, t: '🎯'}],
-        lastDice: 0
-    };
+        const homePaths = {
+            blue: [{x:7, y:13}, {x:7, y:12}, {x:7, y:11}, {x:7, y:10}, {x:7, y:9}],
+            red: [{x:1, y:7}, {x:2, y:7}, {x:3, y:7}, {x:4, y:7}, {x:5, y:7}],
+            green: [{x:7, y:1}, {x:7, y:2}, {x:7, y:3}, {x:7, y:4}, {x:7, y:5}],
+            yellow: [{x:13, y:7}, {x:12, y:7}, {x:11, y:7}, {x:10, y:7}, {x:9, y:7}]
+        };
 
-    peer = new Peer();
-    peer.on('open', id => document.getElementById('my-peer-id').innerText = id);
-    peer.on('connection', c => { conn = c; myRole = 1; initGame(); });
-
-    function joinGame() {
-        const id = document.getElementById('target-id').value;
-        conn = peer.connect(id);
-        myRole = 2;
-        initGame();
-    }
-
-    function initGame() {
-        document.getElementById('conn-controls').style.display = 'none';
-        document.getElementById('status-bar').innerText = "Connecté ! Bonne chance.";
-        conn.on('data', d => { state = d; updateUI(); });
+        const colors = { p1: 'blue', p2: 'green' };
+        const startIndices = { blue: 1, red: 14, green: 27, yellow: 40 };
         
-        // Générer les cases visuelles
-        const b = document.getElementById('board');
-        pathCoords.forEach((pos, i) => {
-            const div = document.createElement('div');
-            div.className = 'case' + ([0, 6, 12, 18].includes(i) ? ' safe' : '');
-            div.style.left = pos.x + 'px'; div.style.top = pos.y + 'px';
-            b.appendChild(div);
-        });
+        // Exact pixel offsets for 4 circles in each base (15px padding, 57x57 quadrants)
+        const offsets = [
+            {x: 43.5, y: 43.5}, {x: 100.5, y: 43.5}, 
+            {x: 43.5, y: 100.5}, {x: 100.5, y: 100.5}
+        ];
+        const basePositions = {
+            red: offsets.map(o => ({x: o.x, y: o.y})),
+            green: offsets.map(o => ({x: o.x + 216, y: o.y})),
+            blue: offsets.map(o => ({x: o.x, y: o.y + 216})),
+            yellow: offsets.map(o => ({x: o.x + 216, y: o.y + 216}))
+        };
 
-        // Créer les pions
-        for(let i=0; i<4; i++) {
-            createPion('p1', i, 'var(--blue)');
-            createPion('p2', i, 'var(--green)');
-        }
-        updateUI();
-    }
+        let peer, conn, myRole;
+        let currentDice = 0;
+        let state = {
+            turn: 1,
+            p1: { pions: [-1, -1, -1, -1], score: 0 },
+            p2: { pions: [-1, -1, -1, -1], score: 0 },
+            lastDice: 0
+        };
 
-    function createPion(p, i, color) {
-        const div = document.createElement('div');
-        div.id = `${p}-${i}`;
-        div.className = 'pion';
-        div.style.background = color;
-        div.onclick = () => moveSelectedPion(i);
-        document.getElementById('board').appendChild(div);
-    }
-
-    function rollDice() {
-        if (state.turn !== myRole || currentDice !== 0) return;
-        
-        let d = Math.floor(Math.random() * 6) + 1;
-        
-        // Appliquer pouvoirs
-        let pData = state[`p${myRole}`];
-        if(pData.power === '🎯') d = 6; // Force un 6
-        if(pData.power === '🚀') d = d + 2; // Bonus de vitesse
-
-        currentDice = d;
-        state.lastDice = d;
-        document.getElementById('dice-container').innerText = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][d] || d;
-        
-        // Vérifier si au moins un pion peut bouger
-        const canMove = pData.pions.some(p => p !== -1 || d === 6);
-        if(!canMove) {
-            setTimeout(nextTurn, 1000);
-        } else {
-            document.getElementById('instruction').innerText = "Choisis un pion brillant !";
-            updateUI();
-        }
-    }
-
-    function moveSelectedPion(idx) {
-        if (state.turn !== myRole || currentDice === 0) return;
-        
-        let pData = state[`p${myRole}`];
-        let pos = pData.pions[idx];
-
-        // Sortie de base
-        if (pos === -1) {
-            if (currentDice === 6) {
-                pData.pions[idx] = 0;
-                finishMove();
-            }
-        } else {
-            // Avancer
-            pData.pions[idx] += currentDice;
-            checkLogic(idx);
-            finishMove();
-        }
-    }
-
-    function checkLogic(idx) {
-        let pData = state[`p${myRole}`];
-        let opData = state[`p${myRole === 1 ? 2 : 1}`];
-        let newPos = pData.pions[idx];
-
-        // 1. Victoire
-        if (newPos >= pathCoords.length) {
-            pData.score++;
-            pData.pions[idx] = -2; // Hors jeu
-            alert("Pion arrivé !");
-        }
-
-        // 2. Pouvoir
-        let pw = state.powers.find(x => x.p === newPos);
-        if(pw) {
-            pData.power = pw.t;
-            pw.p = Math.floor(Math.random() * 20); // Déplace le bonus
-        }
-
-        // 3. Manger l'adversaire
-        opData.pions.forEach((oPos, i) => {
-            if(oPos === newPos && ![0, 6, 12, 18].includes(newPos)) {
-                if(pData.power !== '🛡️') {
-                    opData.pions[i] = -1;
-                    pData.score++;
-                    alert("MANGÉ ! +1 Point");
+        // 2. Setup Board UI
+        function drawBoard() {
+            const board = document.getElementById('board');
+            
+            const bases = [
+                { c: 'red', r: 1, col: 1, bg: 'var(--red)' },
+                { c: 'green', r: 1, col: 10, bg: 'var(--green)' },
+                { c: 'blue', r: 10, col: 1, bg: 'var(--blue)' },
+                { c: 'yellow', r: 10, col: 10, bg: 'var(--yellow)' }
+            ];
+            
+            bases.forEach(b => {
+                const baseEl = document.createElement('div');
+                baseEl.className = 'base';
+                baseEl.style.gridArea = `${b.r} / ${b.col} / ${b.r + 6} / ${b.col + 6}`;
+                baseEl.style.backgroundColor = b.bg;
+                
+                const inner = document.createElement('div');
+                inner.className = 'base-inner';
+                for(let i=0; i<4; i++) {
+                    const circle = document.createElement('div');
+                    circle.className = 'base-circle';
+                    inner.appendChild(circle);
                 }
-            }
-        });
-        
-        if(pData.power === '🛡️') pData.power = null;
-    }
+                baseEl.appendChild(inner);
+                board.appendChild(baseEl);
+            });
 
-    function finishMove() {
-        if (currentDice !== 6) nextTurn();
-        currentDice = 0;
-        sync();
-    }
+            const center = document.createElement('div');
+            center.className = 'home-center';
+            center.style.gridArea = '7 / 7 / 10 / 10';
+            board.appendChild(center);
 
-    function nextTurn() {
-        state.turn = state.turn === 1 ? 2 : 1;
-        currentDice = 0;
-        document.getElementById('instruction').innerText = "Au tour de l'adversaire";
-        sync();
-    }
-
-    function sync() {
-        if(conn) conn.send(state);
-        updateUI();
-    }
-
-    function updateUI() {
-        // Positionner les pions
-        ['p1', 'p2'].forEach(pKey => {
-            state[pKey].pions.forEach((pos, i) => {
-                const el = document.getElementById(`${pKey}-${i}`);
-                if(pos === -1) { // Base
-                    el.style.left = (pKey === 'p1' ? 20 : 310) + 'px';
-                    el.style.top = (155 + i*10) + 'px';
-                } else if(pos === -2) {
-                    el.style.display = 'none';
-                } else {
-                    el.style.left = pathCoords[pos].x + 4 + 'px';
-                    el.style.top = pathCoords[pos].y + 4 + 'px';
+            globalPath.forEach((p, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'path-cell';
+                cell.style.gridColumn = p.x + 1;
+                cell.style.gridRow = p.y + 1;
+                
+                if (index === 1) cell.style.backgroundColor = 'var(--blue)';
+                if (index === 14) cell.style.backgroundColor = 'var(--red)';
+                if (index === 27) cell.style.backgroundColor = 'var(--green)';
+                if (index === 40) cell.style.backgroundColor = 'var(--yellow)';
+                
+                if ([1, 9, 14, 22, 27, 35, 40, 48].includes(index)) {
+                    cell.innerHTML = '⭐';
+                    cell.classList.add('safe-zone');
                 }
                 
-                // Animation de sélection
-                const isMyTurn = (state.turn === myRole && pKey === `p${myRole}`);
-                const canExit = (pos === -1 && currentDice === 6);
-                const canMove = (pos >= 0 && currentDice > 0);
-                el.classList.toggle('can-move', isMyTurn && (canExit || canMove));
+                board.appendChild(cell);
             });
-        });
 
-        document.getElementById('score-text').innerText = `P1: ${state.p1.score} | P2: ${state.p2.score}`;
-        document.getElementById('active-power').innerText = "Mon Pouvoir: " + (state[`p${myRole}`]?.power || "Aucun");
-    }
-</script>
+            const drawHomePath = (pathArr, colorCode) => {
+                pathArr.forEach(p => {
+                    const cell = document.createElement('div');
+                    cell.className = 'path-cell';
+                    cell.style.gridColumn = p.x + 1;
+                    cell.style.gridRow = p.y + 1;
+                    cell.style.backgroundColor = colorCode;
+                    board.appendChild(cell);
+                });
+            };
+            
+            drawHomePath(homePaths.blue, 'var(--blue)');
+            drawHomePath(homePaths.red, 'var(--red)');
+            drawHomePath(homePaths.green, 'var(--green)');
+            drawHomePath(homePaths.yellow, 'var(--yellow)');
+        }
+
+        function createPawns() {
+            const board = document.getElementById('board');
+            for(let i=0; i<4; i++) {
+                let p1 = document.createElement('div');
+                p1.id = `p1-${i}`;
+                p1.className = 'pawn';
+                p1.style.backgroundColor = 'var(--blue)';
+                p1.onclick = () => moveSelectedPion(i);
+                board.appendChild(p1);
+                
+                let p2 = document.createElement('div');
+                p2.id = `p2-${i}`;
+                p2.className = 'pawn';
+                p2.style.backgroundColor = 'var(--green)';
+                p2.onclick = () => moveSelectedPion(i);
+                board.appendChild(p2);
+            }
+        }
+
+        // 3. Logic & P2P Networking
+        window.onload = () => {
+            peer = new Peer();
+            peer.on('open', id => {
+                document.getElementById('my-peer-id').innerText = id;
+            });
+            peer.on('connection', c => {
+                conn = c;
+                myRole = 1;
+                c.on('open', () => {
+                    startGame();
+                    sync();
+                });
+            });
+        };
+
+        function joinGame() {
+            const id = document.getElementById('target-id').value;
+            if (!id) return alert("Enter an ID");
+            conn = peer.connect(id);
+            myRole = 2;
+            conn.on('open', () => {
+                startGame();
+            });
+        }
+
+        function startGame() {
+            document.getElementById('setup-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            
+            conn.on('data', d => {
+                state = d;
+                currentDice = 0; 
+                updateUI();
+            });
+            
+            drawBoard();
+            createPawns();
+            updateUI();
+        }
+
+        function getDiceFace(d) {
+            const faces = ["🎲", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+            return faces[d] || "🎲";
+        }
+
+        function rollDice() {
+            if (state.turn !== myRole || currentDice !== 0) return;
+            
+            let d = Math.floor(Math.random() * 6) + 1;
+            currentDice = d;
+            state.lastDice = d;
+            
+            const diceEl = document.getElementById('dice');
+            diceEl.innerText = '🎲';
+            diceEl.classList.add('rolling');
+            diceEl.classList.remove('my-turn');
+            
+            setTimeout(() => {
+                diceEl.classList.remove('rolling');
+                diceEl.innerText = getDiceFace(d);
+                
+                let pData = state[`p${myRole}`];
+                let canMove = false;
+                pData.pions.forEach(pos => {
+                    if (pos === -1 && d === 6) canMove = true;
+                    if (pos >= 0 && pos + d <= 56) canMove = true;
+                });
+                
+                if (!canMove) {
+                    setTimeout(() => {
+                        finishMove(d === 6);
+                    }, 1000);
+                } else {
+                    updateUI();
+                }
+            }, 500);
+        }
+
+        function moveSelectedPion(idx) {
+            if (state.turn !== myRole || currentDice === 0) return;
+            
+            let pKey = `p${myRole}`;
+            let pData = state[pKey];
+            let pos = pData.pions[idx];
+            
+            let isValid = false;
+            let newPos = pos;
+            if (pos === -1 && currentDice === 6) {
+                isValid = true;
+                newPos = 0; 
+            } else if (pos >= 0 && pos + currentDice <= 56) {
+                isValid = true;
+                newPos = pos + currentDice;
+            }
+            
+            if (!isValid) return;
+            
+            pData.pions[idx] = newPos;
+            
+            let extraRoll = false;
+            let opRole = myRole === 1 ? 2 : 1;
+            let opKey = `p${opRole}`;
+            let opData = state[opKey];
+            
+            if (newPos >= 0 && newPos <= 50) {
+                let globalIndex = (startIndices[colors[pKey]] + newPos) % 52;
+                let isSafe = [1, 9, 14, 22, 27, 35, 40, 48].includes(globalIndex);
+                
+                if (!isSafe) {
+                    opData.pions.forEach((oPos, oIdx) => {
+                        if (oPos >= 0 && oPos <= 50) {
+                            let oGlobalIndex = (startIndices[colors[opKey]] + oPos) % 52;
+                            if (globalIndex === oGlobalIndex) {
+                                opData.pions[oIdx] = -1;
+                                extraRoll = true;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            if (newPos === 56) extraRoll = true;
+            if (currentDice === 6) extraRoll = true;
+            
+            finishMove(extraRoll);
+        }
+
+        function finishMove(extraRoll = false) {
+            if (!extraRoll) {
+                state.turn = state.turn === 1 ? 2 : 1;
+            }
+            currentDice = 0;
+            sync();
+        }
+
+        function sync() {
+            if(conn) conn.send(state);
+            updateUI();
+        }
+
+        function getPawnCoordinates(color, index, pos, currentState) {
+            if (pos === -1) {
+                return basePositions[color][index];
+            }
+            if (pos === 56) {
+                return { x: 180 + (index * 10 - 15), y: 180 + (index * 10 - 15), hidden: false };
+            }
+            
+            let gx, gy;
+            if (pos >= 0 && pos <= 50) {
+                let globalIndex = (startIndices[color] + pos) % 52;
+                gx = globalPath[globalIndex].x;
+                gy = globalPath[globalIndex].y;
+            } else if (pos >= 51 && pos <= 55) {
+                gx = homePaths[color][pos - 51].x;
+                gy = homePaths[color][pos - 51].y;
+            }
+            
+            let px = gx * 24 + 12;
+            let py = gy * 24 + 12;
+            
+            let overlappingPawns = [];
+            if (pos >= 0 && pos <= 55) {
+                let myGlobalIndex = (pos >= 0 && pos <= 50) ? (startIndices[color] + pos) % 52 : -1;
+                
+                ['p1', 'p2'].forEach(pKey => {
+                    let pColor = pKey === 'p1' ? 'blue' : 'green';
+                    currentState[pKey].pions.forEach((oPos, oIndex) => {
+                        let isOverlap = false;
+                        if (oPos >= 0 && oPos <= 50 && myGlobalIndex !== -1) {
+                            let oGlobalIndex = (startIndices[pColor] + oPos) % 52;
+                            if (myGlobalIndex === oGlobalIndex) isOverlap = true;
+                        } else if (pos >= 51 && pos <= 55 && oPos === pos && color === pColor) {
+                            isOverlap = true;
+                        }
+                        
+                        if (isOverlap) {
+                            overlappingPawns.push({color: pColor, index: oIndex});
+                        }
+                    });
+                });
+            }
+            
+            if (overlappingPawns.length > 1) {
+                let myOverlapIndex = overlappingPawns.findIndex(p => p.color === color && p.index === index);
+                const offsetAmt = 5;
+                const offsetArr = [
+                    {dx:-offsetAmt, dy:-offsetAmt}, {dx:offsetAmt, dy:-offsetAmt}, 
+                    {dx:-offsetAmt, dy:offsetAmt}, {dx:offsetAmt, dy:offsetAmt}
+                ];
+                let myOffset = offsetArr[myOverlapIndex % 4] || {dx:0, dy:0};
+                px += myOffset.dx;
+                py += myOffset.dy;
+            }
+            
+            return {x: px, y: py};
+        }
+
+        function updateUI() {
+            ['p1', 'p2'].forEach(pKey => {
+                let pColor = pKey === 'p1' ? 'blue' : 'green';
+                state[pKey].pions.forEach((pos, i) => {
+                    const el = document.getElementById(`${pKey}-${i}`);
+                    let coords = getPawnCoordinates(pColor, i, pos, state);
+                    
+                    if (coords.hidden) {
+                        el.style.display = 'none';
+                    } else {
+                        el.style.display = 'block';
+                        el.style.left = coords.x + 'px';
+                        el.style.top = coords.y + 'px';
+                        if(pos === 56) el.style.transform = `translate(-50%, -50%) scale(0.6)`;
+                        else el.style.transform = `translate(-50%, -50%) scale(1)`;
+                    }
+                    
+                    const isMyTurn = (state.turn === myRole && pKey === `p${myRole}`);
+                    let canMove = false;
+                    if (isMyTurn && currentDice > 0) {
+                        if (pos === -1 && currentDice === 6) canMove = true;
+                        if (pos >= 0 && pos + currentDice <= 56) canMove = true;
+                    }
+                    el.classList.toggle('can-move', canMove);
+                });
+            });
+
+            document.getElementById('p1-card').classList.toggle('active-turn', state.turn === 1);
+            document.getElementById('p2-card').classList.toggle('active-turn', state.turn === 2);
+            
+            let statusText = state.turn === myRole ? "YOUR TURN!" : "Waiting...";
+            document.getElementById('status-text').innerText = statusText;
+            document.getElementById('status-text').style.color = state.turn === myRole ? 'var(--green)' : 'white';
+            
+            const diceBtn = document.getElementById('dice');
+            if (state.lastDice > 0 && currentDice === 0) {
+                diceBtn.innerText = getDiceFace(state.lastDice);
+            }
+            
+            if (state.turn === myRole && currentDice === 0) {
+                diceBtn.classList.add('my-turn');
+            } else {
+                diceBtn.classList.remove('my-turn');
+            }
+        }
+    </script>
 </body>
 </html>
