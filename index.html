@@ -152,9 +152,19 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 @keyframes up { to { transform: translate(-50%, -260%); opacity: 0; } }
 
 /* ---------- Bottom bar ---------- */
-.bottombar { width: 100%; max-width: 560px; display: flex; align-items: center; justify-content: space-between; padding: 6px 12px calc(12px + env(safe-area-inset-bottom)); gap: 10px; }
-.social { display: flex; flex-direction: column; gap: 6px; }
-.pill { background: var(--panel); border-radius: 99px; padding: 7px 16px; font-weight: 800; font-size: 14px; }
+.bottombar { width: 100%; max-width: 560px; display: flex; align-items: center; justify-content: center; padding: 6px 12px calc(26px + env(safe-area-inset-bottom)); gap: 10px; }
+.social { display: flex; gap: 8px; flex: none; }
+.sbtn { position: relative; width: 50px; height: 50px; border-radius: 50%; background: var(--panel); border: 2px solid rgba(255,255,255,.25); font-size: 24px; display: grid; place-items: center; box-shadow: 0 4px 0 rgba(0,0,0,.3); }
+.sbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.3); }
+.sbtn .dot { position: absolute; top: 0; right: 0; width: 14px; height: 14px; border-radius: 50%; background: #ff4f8b; border: 2px solid #fff; display: none; }
+.sbtn.unread .dot { display: block; }
+.chat-log { text-align: left; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,.2); border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; font-size: 14px; }
+.chat-log div { margin: 2px 0; word-wrap: break-word; }
+.chat-log b { color: #ffd84a; }
+.chat-log .mine b { color: #86c4ff; }
+.chat-send { display: flex; gap: 8px; margin-bottom: 10px; }
+.chat-send .field { font-size: 16px; padding: 10px 12px; }
+.chat-send .btn { width: auto; margin: 0; padding: 0 16px; }
 .items { display: flex; gap: 10px; }
 .item { position: relative; width: 62px; height: 62px; border-radius: 50%; padding: 0; background: none; }
 .item .orb { box-shadow: 0 0 0 3px rgba(255,255,255,.9), 0 5px 0 rgba(0,0,0,.3), inset 0 -5px 8px rgba(0,0,0,.25); }
@@ -166,15 +176,16 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 /* ---------- Sheets, bubbles, toasts ---------- */
 #sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
 #sheet.on { display: flex; }
-#sheet .card { max-width: 340px; text-align: center; }
+#sheet .card { max-width: 360px; text-align: center; background: #2c2878; border-color: rgba(255,255,255,.2); }
 .grid-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .grid-btns.three { grid-template-columns: repeat(3, 1fr); }
 .grid-btns.two { grid-template-columns: repeat(2, 1fr); }
 .gbtn { background: rgba(255,255,255,.12); border-radius: 12px; padding: 10px 4px; font-size: 26px; }
 .gbtn.txt { font-size: 14px; font-weight: 700; padding: 12px 6px; }
 .gbtn .dice { margin: auto; width: 40px; height: 40px; }
-.bubble { position: absolute; z-index: 400; background: #fff; color: #222; font-weight: 800; border-radius: 14px; padding: 6px 12px; font-size: 15px; max-width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,.35); display: none; }
-.bubble.big { font-size: 30px; padding: 2px 10px; }
+.bubble { position: absolute; z-index: 400; background: #fff; color: #222; font-weight: 800; border-radius: 16px; padding: 8px 14px; font-size: 17px; max-width: 250px; box-shadow: 0 6px 16px rgba(0,0,0,.4); display: none; word-wrap: break-word; animation: popb .25s ease-out; }
+@keyframes popb { from { transform: scale(.5); opacity: 0; } }
+.bubble.big { font-size: 36px; padding: 2px 12px; }
 .seat.bottom .bubble { left: 0; bottom: 68px; }
 .seat.top .bubble { right: 0; top: 68px; }
 #toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); background: rgba(0,0,0,.8); padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 14px; z-index: 2000; display: none; max-width: 90vw; text-align: center; }
@@ -267,14 +278,15 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
       <div class="avatar"><span></span><div class="pie"></div></div>
       <div class="dicebox"><div class="dice"></div><span class="x2">×2</span></div>
       <div><div class="pname"></div><div class="pstate"></div></div>
+      <div class="spacer"></div>
+      <div class="social">
+        <button id="btn-emoji" class="sbtn" aria-label="Emoji">😀</button>
+        <button id="btn-chat" class="sbtn" aria-label="Chat">💬<i class="dot"></i></button>
+      </div>
     </div>
     <div id="hint"></div>
   </div>
   <div class="bottombar">
-    <div class="social">
-      <button id="btn-emoji" class="pill">Emoji</button>
-      <button id="btn-chat" class="pill">Chat</button>
-    </div>
     <div class="items">
       <button class="item" id="it-x2" title="Double your next roll"><div class="orb" data-icon="x2"></div><span class="n">0</span><span class="lbl">Double</span></button>
       <button class="item" id="it-pick" title="Choose your number"><div class="orb" data-icon="pick"></div><span class="n">0</span><span class="lbl">Choose</span></button>
@@ -712,7 +724,12 @@ function onNet(m) {
       break;
     case 'emoji':
     case 'chat':
-      if (m.f === peerId) { bubble(1, clean(m.x) || m.x, m.t === 'emoji'); sfx('pop'); }
+      if (m.f === peerId) {
+        const x = m.t === 'emoji' ? String(m.x || '').slice(0, 8) : cleanMsg(m.x);
+        if (!x) break;
+        bubble(1, x, m.t === 'emoji'); sfx('pop'); vibrate(40);
+        if (m.t === 'chat') { addChat(peerName, x, false); if (sheet.kind !== 'chat') $('#btn-chat').classList.add('unread'); }
+      }
       break;
     case 'rematch':
       if (role === 'host' && m.f === peerId && S && S.phase === 'over') startRematch();
@@ -1145,10 +1162,27 @@ const EMOJIS = ['😀', '😂', '😎', '😮', '😡', '😭', '👍', '👏', 
 const PHRASES = ['Hello!', 'Good luck!', 'Nice move!', 'Hurry up!', 'Oops!', 'Well played!', 'Thanks!', 'Bye!'];
 function bubble(seat, text, big) {
   const b = $('#seat-' + seat + ' .bubble');
-  b.textContent = text; b.classList.toggle('big', !!big); b.style.display = 'block';
-  clearTimeout(b._h); b._h = setTimeout(() => (b.style.display = 'none'), 2600);
+  b.textContent = text; b.classList.toggle('big', !!big);
+  b.style.display = 'none'; void b.offsetWidth; b.style.display = 'block';
+  clearTimeout(b._h); b._h = setTimeout(() => (b.style.display = 'none'), big ? 3000 : 5000);
+}
+const cleanMsg = (t) => String(t || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+let chatLog = [];
+function addChat(who, text, mine) {
+  chatLog.push({ who, text, mine });
+  if (chatLog.length > 30) chatLog.shift();
+  if (sheet.kind === 'chat') renderChatLog();
+}
+function renderChatLog() {
+  const box = document.querySelector('#sheet .chat-log'); if (!box) return;
+  box.innerHTML = chatLog.length ? chatLog.map((c) => `<div class="${c.mine ? 'mine' : ''}"><b>${esc(c.who)}:</b> ${esc(c.text)}</div>`).join('')
+    : '<div style="opacity:.6">No messages yet</div>';
+  box.scrollTop = box.scrollHeight;
 }
 function say(kind, x) {
+  x = kind === 'emoji' ? x : cleanMsg(x);
+  if (!x) return;
+  if (kind === 'chat') addChat('You', x, true);
   closeSheet();
   bubble(0, x, kind === 'emoji');
   if (mode === 'online') Net.send({ t: kind, x });
@@ -1159,7 +1193,14 @@ $('#btn-emoji').onclick = () => {
   document.querySelectorAll('#sheet [data-e]').forEach((b) => (b.onclick = () => say('emoji', b.dataset.e)));
 };
 $('#btn-chat').onclick = () => {
-  sheet('<h3>Chat</h3><div class="grid-btns two">' + PHRASES.map((t) => `<button class="gbtn txt" data-t="${t}">${t}</button>`).join('') + '</div>', [['Close', closeSheet]], 'social');
+  $('#btn-chat').classList.remove('unread');
+  sheet('<h3>Chat</h3><div class="chat-log"></div>' +
+    '<div class="chat-send"><input class="field" id="chat-in" maxlength="80" placeholder="Write a message…" autocomplete="off"><button class="btn alt" id="chat-go">Send</button></div>' +
+    '<div class="grid-btns two">' + PHRASES.map((t) => `<button class="gbtn txt" data-t="${t}">${t}</button>`).join('') + '</div>', [['Close', closeSheet]], 'chat');
+  renderChatLog();
+  const send = () => say('chat', $('#chat-in').value);
+  $('#chat-go').onclick = send;
+  $('#chat-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
   document.querySelectorAll('#sheet [data-t]').forEach((b) => (b.onclick = () => say('chat', b.dataset.t)));
 };
 
