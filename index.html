@@ -1,1021 +1,1144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ludo World Mini</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        :root {
-            --blue: #3A86FF;
-            --green: #38B000;
-            --red: #FF006E;
-            --yellow: #FFBE0B;
-            --bg-white: #FFFFFF;
-            --border-gray: #E0E0E0;
-            --text-dark: #333333;
-        }
-        body {
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-            background: #F8F9FA;
-            color: var(--text-dark);
-            min-height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .screen {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            height: 100vh;
-            max-width: 400px;
-        }
-        .screen.active {
-            display: flex;
-        }
-        #setup-screen {
-            justify-content: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .card {
-            background: #FFFFFF;
-            padding: 30px;
-            border-radius: 15px;
-            border: 1px solid var(--border-gray);
-            text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            width: 100%;
-            box-sizing: border-box;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 15px 0;
-            border: 1px solid var(--border-gray);
-            border-radius: 8px;
-            outline: none;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        .btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            background: var(--blue);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(58, 134, 255, 0.3);
-            transition: 0.2s;
-        }
-        .btn:active { transform: scale(0.95); }
-        .highlight {
-            font-weight: bold;
-            color: var(--green);
-            user-select: all;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14244d">
+<title>Ludo Mini</title>
+<!-- Online play goes through public MQTT servers (plain secure websockets), so it works on any network:
+     mobile data, Wi-Fi, behind firewalls. No peer-to-peer connection is needed. -->
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<style>
+:root {
+  --red: #e8453c;    --red-d: #a92b24;
+  --green: #2db35d;  --green-d: #19773b;
+  --yellow: #f4c21f; --yellow-d: #b98d0b;
+  --blue: #2e8ae6;   --blue-d: #1a5aa8;
+  --bg1: #24498a; --bg2: #0f1c40;
+  --panel: rgba(8, 16, 40, .55);
+  --cell: #fbfbfd; --line: #cfd4df;
+  --bs: min(94vw, calc(100vh - 300px), 520px);
+  --c: calc(var(--bs) / 9);
+}
+@supports (height: 100dvh) {
+  :root { --bs: min(94vw, calc(100dvh - 300px), 520px); }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #fff;
+  background: radial-gradient(circle at 50% 28%, var(--bg1), var(--bg2) 75%) fixed, var(--bg2);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+.screen { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; }
+.screen.active { display: flex; }
 
-        #game-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 15px 10px 15px;
-            box-sizing: border-box;
-        }
-        .player-card {
-            background: #FFFFFF;
-            padding: 8px 12px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid var(--border-gray);
-            font-size: 14px;
-            font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: 0.3s;
-        }
-        .player-avatar {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-        }
-        .active-turn {
-            border: 2px solid var(--blue);
-            transform: scale(1.05);
-            box-shadow: 0 4px 10px rgba(58, 134, 255, 0.2);
-        }
-        #status-text {
-            font-weight: bold;
-            font-size: 12px;
-            padding: 5px 10px;
-            color: #888;
-            text-align: center;
-        }
+/* ---------- Menu ---------- */
+#menu, #wait { justify-content: center; padding: 20px 16px; overflow-y: auto; }
+.logo { text-align: center; margin-bottom: 18px; }
+.logo h1 { margin: 6px 0 0; font-size: 40px; letter-spacing: 2px; font-weight: 900; text-shadow: 0 4px 0 rgba(0,0,0,.25); }
+.logo .dots { display: flex; gap: 8px; justify-content: center; }
+.logo .dots span { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.card {
+  width: 100%; max-width: 380px; background: var(--panel); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 18px; padding: 18px; box-shadow: 0 12px 30px rgba(0,0,0,.35);
+}
+.card + .card { margin-top: 12px; }
+.card h3 { margin: 0 0 10px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; opacity: .8; }
+.field {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08); color: #fff; font-size: 17px; outline: none;
+}
+.field:focus { border-color: #ffd84a; }
+.code-field { text-align: center; font-size: 26px; letter-spacing: 10px; font-weight: 800; }
+.btn {
+  display: block; width: 100%; padding: 13px; border-radius: 14px; font-size: 17px; font-weight: 800;
+  background: linear-gradient(#ffd84a, #f0b41a); color: #3a2a00; box-shadow: 0 4px 0 #b47f05; margin-top: 10px;
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b47f05; }
+.btn.alt { background: linear-gradient(#4fb6ff, #2e8ae6); color: #fff; box-shadow: 0 4px 0 #1a5aa8; }
+.btn.alt:active { box-shadow: 0 1px 0 #1a5aa8; }
+.btn.ghost { background: rgba(255,255,255,.1); color: #fff; box-shadow: none; }
+.row { display: flex; gap: 8px; align-items: stretch; }
+.row .btn { margin-top: 0; width: auto; padding: 0 18px; }
+.err { color: #ffb4ad; font-size: 14px; margin-top: 8px; min-height: 0; }
+.rules { font-size: 14px; line-height: 1.5; opacity: .9; }
+.rules summary { cursor: pointer; font-weight: 700; }
+.rules ul { padding-left: 18px; margin: 8px 0 0; }
 
-        #inventories {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            padding: 0 15px;
-            box-sizing: border-box;
-            margin-bottom: 15px;
-            gap: 15px;
-        }
-        .inventory-bar {
-            display: flex;
-            flex-direction: column;
-            width: 50%;
-        }
-        .inventory-slots {
-            display: flex;
-            gap: 5px;
-            min-height: 35px;
-            padding: 5px;
-            background: #FFFFFF;
-            border: 1px solid var(--border-gray);
-            border-radius: 8px;
-            box-sizing: border-box;
-        }
-        .inv-item {
-            width: 25px;
-            height: 25px;
-            background: #F8F9FA;
-            border: 1px solid #CCCCCC;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .inv-item:hover { transform: scale(1.1); }
-        .inv-item.active-power {
-            border: 2px solid var(--blue);
-            box-shadow: 0 0 8px rgba(58, 134, 255, 0.4);
-            background: #EBF2FF;
-        }
+/* ---------- Waiting room ---------- */
+.big-code { font-size: 54px; font-weight: 900; letter-spacing: 12px; text-align: center; margin: 6px 0; color: #ffd84a; user-select: all; -webkit-user-select: all; }
+.center { text-align: center; }
+.spinner { width: 30px; height: 30px; margin: 12px auto; border-radius: 50%; border: 4px solid rgba(255,255,255,.2); border-top-color: #ffd84a; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.net { font-size: 13px; opacity: .8; display: flex; align-items: center; gap: 6px; justify-content: center; }
+.net i { width: 9px; height: 9px; border-radius: 50%; background: #ff6b5e; display: inline-block; }
+.net.ok i { background: #45d37a; }
 
-        #board-container {
-            padding: 15px;
-            background: #FFFFFF;
-            border-radius: 15px;
-            border: 1px solid var(--border-gray);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            position: relative;
-        }
-        #board {
-            display: grid;
-            grid-template-columns: repeat(9, 1fr);
-            grid-template-rows: repeat(9, 1fr);
-            width: 340px;
-            height: 340px;
-            gap: 1px;
-            background: var(--border-gray);
-            border: 1px solid var(--border-gray);
-            border-radius: 4px;
-            position: relative;
-        }
-        .base {
-            background: #FFFFFF;
-            padding: 10px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .base-inner {
-            width: 100%;
-            height: 100%;
-            background: #FAFAFA;
-            border: 1px solid #EEEEEE;
-            border-radius: 8px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            place-items: center;
-        }
-        .base-circle {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #FFFFFF;
-            border: 1px solid var(--border-gray);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .home-center {
-            background: #FFFFFF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: #CCCCCC;
-        }
-        .path-cell {
-            background: #FFFFFF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            position: relative;
-        }
-        .power-icon {
-            pointer-events: none;
-            z-index: 50;
-            animation: bounce 2s infinite ease-in-out;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
-        }
+/* ---------- Game screen ---------- */
+.topbar { width: 100%; max-width: 560px; display: flex; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 4px; }
+.icon-btn { width: 42px; height: 42px; border-radius: 12px; background: var(--panel); font-size: 22px; display: grid; place-items: center; box-shadow: inset 0 -3px 0 rgba(0,0,0,.3); }
+.chip { background: var(--panel); border-radius: 12px; padding: 0 12px; height: 42px; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.spacer { flex: 1; }
+.stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.seat { width: var(--bs); height: 64px; display: flex; align-items: center; gap: 10px; position: relative; }
+.seat.top { justify-content: flex-end; }
+.seat .pname { font-weight: 800; font-size: 15px; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat .pstate { font-size: 12px; opacity: .75; font-weight: 600; }
+.avatar { position: relative; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 22px; border: 3px solid rgba(255,255,255,.9); box-shadow: 0 4px 10px rgba(0,0,0,.35); flex: none; }
+.avatar svg { position: absolute; inset: -8px; width: calc(100% + 16px); height: calc(100% + 16px); transform: rotate(-90deg); pointer-events: none; }
+.avatar circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.avatar.off { filter: grayscale(1); opacity: .5; }
+.dicebox { width: 60px; height: 60px; border-radius: 16px; background: rgba(0,0,0,.3); display: grid; place-items: center; position: relative; opacity: 0; pointer-events: none; flex: none; }
+.dicebox.on { opacity: 1; pointer-events: auto; }
+.dice {
+  width: 46px; height: 46px; border-radius: 11px; background: linear-gradient(#ffffff, #e4e7ef); box-shadow: 0 4px 0 #a9aec0;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); padding: 6px;
+}
+.pip { width: 72%; height: 72%; place-self: center; border-radius: 50%; background: #20222b; visibility: hidden; }
+.pip.on { visibility: visible; }
+.dice.rolling { animation: roll .45s ease-in-out; }
+@keyframes roll { 0% { transform: rotate(0) scale(1); } 30% { transform: rotate(140deg) scale(1.15); } 60% { transform: rotate(250deg) scale(.95); } 100% { transform: rotate(360deg) scale(1); } }
+.dicebox.ready { cursor: pointer; box-shadow: 0 0 0 3px #ffd84a, 0 0 18px rgba(255,216,74,.7); animation: nudge 1.1s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.dicebox .x2 { position: absolute; right: -8px; top: -8px; background: #ff4f8b; color: #fff; font-size: 12px; font-weight: 900; border-radius: 10px; padding: 2px 6px; display: none; }
+.dicebox.doubled .x2 { display: block; }
+.dicebox.dim .dice { opacity: .55; }
+#hint { height: 22px; font-size: 14px; font-weight: 700; text-align: center; opacity: .95; }
 
-        .pawn {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.5);
-            z-index: 100;
-            pointer-events: none;
-        }
-        .pawn.can-move {
-            cursor: pointer;
-            pointer-events: auto;
-            border: 2px solid var(--text-dark);
-            transform: translate(-50%, -50%) scale(1.15);
-        }
-        .jumping {
-            animation: jump-arc 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-        @keyframes jump-arc {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -80%) scale(1.3); }
-            100% { transform: translate(-50%, -50%) scale(1); }
-        }
+/* ---------- Board ---------- */
+#board-wrap { position: relative; }
+#board { position: relative; width: var(--bs); height: var(--bs); background: #fff; border-radius: calc(var(--c) * .2); box-shadow: 0 0 0 calc(var(--c) * .08) rgba(255,255,255,.2), 0 14px 34px rgba(0,0,0,.5); }
+#board > * { position: absolute; }
+.cell { background: var(--cell); box-shadow: inset 0 0 0 .5px var(--line); display: grid; place-items: center; }
+.cell.star::after { content: "★"; color: rgba(255,255,255,.85); font-size: calc(var(--c) * .6); line-height: 1; }
+.base { border-radius: calc(var(--c) * .2); box-shadow: inset 0 0 0 calc(var(--c) * .06) rgba(0,0,0,.08); }
+.base-inner { position: absolute; left: 14%; top: 14%; width: 72%; height: 72%; border-radius: 14%; background: rgba(0,0,0,.22); box-shadow: inset 0 calc(var(--c) * .06) calc(var(--c) * .12) rgba(0,0,0,.25); }
+.slot { border-radius: 50%; background: rgba(0,0,0,.22); box-shadow: inset 0 calc(var(--c) * .05) calc(var(--c) * .08) rgba(0,0,0,.3); transform: translate(-50%, -50%); }
+.tag { z-index: 150; pointer-events: none; font-size: calc(var(--c) * .3); font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; overflow: hidden; }
+.pts { background: rgba(0,0,0,.35); border-radius: 99px; padding: 0 calc(var(--c) * .14); line-height: calc(var(--c) * .42); }
+.center svg { width: 100%; height: 100%; display: block; }
+.pawn { width: calc(var(--c) * .82); height: calc(var(--c) * 1.05); transform: translate(-50%, -84%); transition: left .14s linear, top .14s linear; pointer-events: none; }
+.pawn svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pawn.fly { transition: left .45s ease-out, top .45s ease-out; }
+.pawn.done { width: calc(var(--c) * .5); height: calc(var(--c) * .64); }
+.pawn.hop svg { animation: hop .14s ease-out; }
+@keyframes hop { 50% { transform: translateY(-28%); } }
+.pawn.can { pointer-events: auto; cursor: pointer; }
+.pawn.can svg { animation: bob .8s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-12%); } }
+.pawn.can::before { content: ""; position: absolute; left: 50%; bottom: -4%; width: 115%; height: 42%; transform: translateX(-50%); border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 8px #fff; animation: ring .8s ease-in-out infinite; }
+@keyframes ring { 50% { opacity: .35; } }
+.pawn.shielded::after { content: ""; position: absolute; left: -16%; top: -6%; width: 132%; height: 112%; border-radius: 50% 50% 45% 45%; border: 2px solid rgba(150,235,255,.95); background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.35), rgba(110,210,255,.25)); }
+.power { width: calc(var(--c) * .7); height: calc(var(--c) * .7); transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center; font-size: calc(var(--c) * .38); background: radial-gradient(circle at 35% 30%, #9edcff, #2b6fd6); border: 2px solid #fff; box-shadow: 0 3px 6px rgba(0,0,0,.35); animation: float 2s ease-in-out infinite; z-index: 5; }
+@keyframes float { 50% { transform: translate(-50%, -62%); } }
+.float { transform: translate(-50%, -50%); font-weight: 900; font-size: calc(var(--c) * .55); color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.6); animation: up 1.1s ease-out forwards; z-index: 300; pointer-events: none; }
+@keyframes up { to { transform: translate(-50%, -260%); opacity: 0; } }
 
-        #dice-zone {
-            margin-top: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            height: 90px;
-        }
-        .dice-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            background: #FFFFFF;
-            border: 2px solid var(--border-gray);
-            color: var(--text-dark);
-            font-size: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 0 var(--border-gray);
-            cursor: pointer;
-            user-select: none;
-            transition: 0.1s;
-        }
-        .dice-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0px 0 var(--border-gray);
-        }
-        .dice-btn.my-turn {
-            border-color: var(--blue);
-            box-shadow: 0 4px 0 var(--blue);
-        }
-        .rolling {
-            animation: shake 0.4s infinite;
-        }
-        @keyframes shake {
-            0% { transform: rotate(0deg) scale(1.1); }
-            25% { transform: rotate(20deg) scale(1.1); }
-            50% { transform: rotate(0deg) scale(1.1); }
-            75% { transform: rotate(-20deg) scale(1.1); }
-            100% { transform: rotate(0deg) scale(1.1); }
-        }
-        .x2-active {
-            color: var(--blue);
-            border-color: var(--blue);
-        }
-    </style>
+/* ---------- Bottom bar ---------- */
+.bottombar { width: 100%; max-width: 560px; display: flex; align-items: center; justify-content: space-between; padding: 6px 12px calc(12px + env(safe-area-inset-bottom)); gap: 10px; }
+.social { display: flex; flex-direction: column; gap: 6px; }
+.pill { background: var(--panel); border-radius: 99px; padding: 7px 16px; font-weight: 800; font-size: 14px; }
+.items { display: flex; gap: 10px; }
+.item { position: relative; width: 56px; height: 56px; border-radius: 50%; font-size: 24px; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #9edcff, #2b6fd6); border: 3px solid rgba(255,255,255,.85); box-shadow: 0 4px 0 rgba(0,0,0,.3); }
+.item:disabled { filter: grayscale(.9); opacity: .45; cursor: default; }
+.item.armed { box-shadow: 0 0 0 4px #ffd84a, 0 0 16px #ffd84a; }
+.item .n { position: absolute; right: -4px; bottom: -4px; min-width: 20px; height: 20px; border-radius: 10px; background: #ff4f8b; font-size: 12px; font-weight: 900; display: grid; place-items: center; padding: 0 5px; border: 2px solid #fff; }
+.item .lbl { position: absolute; top: 100%; margin-top: 2px; font-size: 10px; font-weight: 800; opacity: .8; white-space: nowrap; }
+
+/* ---------- Sheets, bubbles, toasts ---------- */
+#sheet { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+#sheet.on { display: flex; }
+#sheet .card { max-width: 340px; text-align: center; }
+.grid-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.grid-btns.three { grid-template-columns: repeat(3, 1fr); }
+.grid-btns.two { grid-template-columns: repeat(2, 1fr); }
+.gbtn { background: rgba(255,255,255,.12); border-radius: 12px; padding: 10px 4px; font-size: 26px; }
+.gbtn.txt { font-size: 14px; font-weight: 700; padding: 12px 6px; }
+.gbtn .dice { margin: auto; width: 40px; height: 40px; }
+.bubble { position: absolute; z-index: 400; background: #fff; color: #222; font-weight: 800; border-radius: 14px; padding: 6px 12px; font-size: 15px; max-width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,.35); display: none; }
+.bubble.big { font-size: 30px; padding: 2px 10px; }
+.seat.bottom .bubble { left: 0; bottom: 68px; }
+.seat.top .bubble { right: 0; top: 68px; }
+#toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); background: rgba(0,0,0,.8); padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 14px; z-index: 2000; display: none; max-width: 90vw; text-align: center; }
+.win-title { font-size: 34px; font-weight: 900; margin: 4px 0 6px; }
+</style>
 </head>
 <body>
 
-    <div id="setup-screen" class="screen active">
-        <h1 style="font-size: 36px; color: var(--text-dark); margin-bottom: 30px;">LUDO <br>WORLD MINI</h1>
-        <div class="card">
-            <h3 style="margin-top:0;">Host a Game</h3>
-            <p style="color: #666; font-size: 14px;">Share your 4-digit code:</p>
-            <p><span id="my-peer-id" class="highlight" style="font-size: 32px; letter-spacing: 5px;">...</span></p>
-            
-            <hr style="border:0; border-top: 1px solid var(--border-gray); margin: 25px 0;">
-            
-            <h3 style="margin-top:0;">Join a Game</h3>
-            <input type="number" id="target-id" placeholder="Enter 4-digit code" style="text-align: center; font-size: 24px; letter-spacing: 5px;">
-            <button class="btn" onclick="joinGame()">Connect & Play</button>
-        </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs id="grad-defs"></defs>
+</svg>
+
+<!-- ===== Menu ===== -->
+<div id="menu" class="screen active">
+  <div class="logo">
+    <div class="dots"><span style="background:var(--red)"></span><span style="background:var(--green)"></span><span style="background:var(--yellow)"></span><span style="background:var(--blue)"></span></div>
+    <h1>LUDO MINI</h1>
+  </div>
+  <div class="card">
+    <h3>Your name</h3>
+    <input id="name" class="field" maxlength="14" placeholder="Your name" autocomplete="off">
+    <button id="btn-resume" class="btn" style="display:none"></button>
+  </div>
+  <div class="card">
+    <h3>Play with a friend</h3>
+    <button id="btn-create" class="btn">Create a room</button>
+    <div class="row" style="margin-top:12px">
+      <input id="join-code" class="field code-field" type="tel" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off">
+      <button id="btn-join" class="btn alt">Join</button>
     </div>
+    <div id="menu-err" class="err"></div>
+  </div>
+  <div class="card">
+    <button id="btn-bot" class="btn ghost" style="margin-top:0">Play vs computer</button>
+    <details class="rules" style="margin-top:12px">
+      <summary>How to play</summary>
+      <ul>
+        <li>Each player has 4 pawns: 2 start on the board, 2 wait at home.</li>
+        <li>Roll a 6 to bring a pawn out. A 6 gives another roll.</li>
+        <li>Land on an opponent to send it home: <b>+1 point</b> and another roll.</li>
+        <li>Bring a pawn to the centre: <b>+1 point</b>. First to <b>3 points</b> wins.</li>
+        <li>Star squares are safe. Pick up items on the board:
+          ⚡ doubles your next roll, 🎯 lets you choose the number, 🛡️ protects one pawn from one capture.</li>
+        <li>You have 15 seconds per action, then the game plays for you.</li>
+      </ul>
+    </details>
+  </div>
+</div>
 
-    <div id="game-screen" class="screen">
-        <div id="game-header">
-            <div class="player-card" id="p1-card">
-                <div class="player-avatar" style="background: var(--blue);"></div>
-                <span>Blue : <span id="p1-score">0</span>/3</span>
-            </div>
-            <div id="status-text">Waiting...</div>
-            <div class="player-card" id="p2-card">
-                <span>Green : <span id="p2-score">0</span>/3</span>
-                <div class="player-avatar" style="background: var(--green);"></div>
-            </div>
-        </div>
-
-        <div id="inventories">
-            <div class="inventory-bar">
-                <div style="font-size: 11px; font-weight: bold; color: var(--blue); margin-bottom: 2px;">INVENTORY</div>
-                <div id="p1-inventory" class="inventory-slots"></div>
-            </div>
-            <div class="inventory-bar" style="align-items: flex-end;">
-                <div style="font-size: 11px; font-weight: bold; color: var(--green); margin-bottom: 2px;">INVENTORY</div>
-                <div id="p2-inventory" class="inventory-slots" style="justify-content: flex-end;"></div>
-            </div>
-        </div>
-        
-        <div id="board-container">
-            <div id="board"></div>
-            
-            <div id="target-ui" style="display:none; flex-direction:column; align-items:center; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(255,255,255,0.95); padding:20px; border-radius:15px; border:2px solid var(--blue); box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index:200; backdrop-filter: blur(5px);">
-                <h3 style="margin:0 0 15px 0; color:var(--text-dark);">🎯 Choose Roll</h3>
-                <div style="display:flex; gap:10px; flex-wrap: wrap; justify-content: center; width: 160px;">
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(1)">1</button>
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(2)">2</button>
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(3)">3</button>
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(4)">4</button>
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(5)">5</button>
-                    <button class="btn" style="padding:10px; width:45px;" onclick="chooseDice(6)">6</button>
-                </div>
-            </div>
-            
-            <div id="win-ui" style="display:none; flex-direction:column; align-items:center; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#FFFFFF; padding:30px; border-radius:20px; border:3px solid var(--green); box-shadow: 0 15px 40px rgba(0,0,0,0.2); z-index:300;">
-                <h1 id="win-msg" style="margin:0; color:var(--green);">YOU WIN!</h1>
-                <button class="btn" style="margin-top: 20px;" onclick="location.reload()">Play Again</button>
-            </div>
-        </div>
-        
-        <div id="dice-zone">
-            <div id="dice" class="dice-btn" onclick="rollDice()">🎲</div>
-        </div>
+<!-- ===== Waiting room ===== -->
+<div id="wait" class="screen">
+  <div class="card center">
+    <div id="wait-host">
+      <h3>Room code</h3>
+      <div id="wait-code" class="big-code">····</div>
+      <p style="margin:0 0 6px; opacity:.85">Send this code (or the link) to your friend.</p>
+      <button id="btn-share" class="btn alt">Share invite link</button>
     </div>
+    <div id="wait-guest" style="display:none">
+      <h3>Joining room</h3>
+      <div id="wait-gcode" class="big-code">····</div>
+    </div>
+    <div class="spinner"></div>
+    <p id="wait-msg" style="margin:4px 0 10px; font-weight:700">Waiting for your friend…</p>
+    <div id="wait-net" class="net"><i></i><span>Connecting to the game server…</span></div>
+    <button id="btn-cancel" class="btn ghost">Cancel</button>
+  </div>
+</div>
 
-    <script>
-        // 9x9 Grid, 28 Case Perimeter
-        const globalPath = [
-            {x:5, y:0}, {x:5, y:1}, {x:5, y:2}, // 0..2 (Top Right Lane, DOWN)
-            {x:6, y:3}, {x:7, y:3}, {x:8, y:3}, // 3..5 (Right Top Lane, RIGHT)
-            {x:8, y:4},                         // 6 (Right Edge, DOWN)
-            {x:8, y:5}, {x:7, y:5}, {x:6, y:5}, // 7..9 (Right Bottom Lane, LEFT)
-            {x:5, y:6}, {x:5, y:7}, {x:5, y:8}, // 10..12 (Bottom Right Lane, DOWN)
-            {x:4, y:8},                         // 13 (Bottom Edge, LEFT)
-            {x:3, y:8}, {x:3, y:7}, {x:3, y:6}, // 14..16 (Bottom Left Lane, UP)
-            {x:2, y:5}, {x:1, y:5}, {x:0, y:5}, // 17..19 (Left Bottom Lane, LEFT)
-            {x:0, y:4},                         // 20 (Left Edge, UP)
-            {x:0, y:3}, {x:1, y:3}, {x:2, y:3}, // 21..23 (Left Top Lane, RIGHT)
-            {x:3, y:2}, {x:3, y:1}, {x:3, y:0}, // 24..26 (Top Left Lane, UP)
-            {x:4, y:0}                          // 27 (Top Edge, RIGHT)
-        ];
+<!-- ===== Game ===== -->
+<div id="game" class="screen">
+  <div class="topbar">
+    <button id="btn-leave" class="icon-btn" aria-label="Leave">‹</button>
+    <div id="room-chip" class="chip"></div>
+    <div class="spacer"></div>
+    <div id="net-chip" class="chip net"><i></i><span></span></div>
+    <button id="btn-sound" class="icon-btn" aria-label="Sound">🔊</button>
+  </div>
+  <div class="stage">
+    <div class="seat top" id="seat-1">
+      <div class="bubble"></div>
+      <div class="dicebox"><div class="dice"></div><span class="x2">×2</span></div>
+      <div style="text-align:right"><div class="pname"></div><div class="pstate"></div></div>
+      <div class="avatar"><svg viewBox="0 0 68 68"><circle cx="34" cy="34" r="31"/></svg><span></span></div>
+    </div>
+    <div id="board-wrap"><div id="board"></div></div>
+    <div class="seat bottom" id="seat-0">
+      <div class="bubble"></div>
+      <div class="avatar"><svg viewBox="0 0 68 68"><circle cx="34" cy="34" r="31"/></svg><span></span></div>
+      <div><div class="pname"></div><div class="pstate"></div></div>
+      <div class="dicebox"><div class="dice"></div><span class="x2">×2</span></div>
+    </div>
+    <div id="hint"></div>
+  </div>
+  <div class="bottombar">
+    <div class="social">
+      <button id="btn-emoji" class="pill">Emoji</button>
+      <button id="btn-chat" class="pill">Chat</button>
+    </div>
+    <div class="items">
+      <button class="item" id="it-x2" title="Double your next roll">⚡<span class="n">0</span><span class="lbl">Double</span></button>
+      <button class="item" id="it-pick" title="Choose your number">🎯<span class="n">0</span><span class="lbl">Choose</span></button>
+      <button class="item" id="it-shield" title="Protect a pawn">🛡️<span class="n">0</span><span class="lbl">Shield</span></button>
+    </div>
+  </div>
+</div>
 
-        const colors = { p1: 'blue', p2: 'green' };
-        // Blue (Bottom-Left Base) starts at 15 (3,7)
-        // Green (Top-Right Base) starts at 1 (5,1)
-        const startIndices = { blue: 15, green: 1 };
-        const safeZones = [1, 8, 15, 22];
-        const homePaths = {
-            blue: [{x:4, y:7}, {x:4, y:6}],
-            green: [{x:4, y:1}, {x:4, y:2}]
-        };
+<div id="sheet"><div class="card" id="sheet-card"></div></div>
+<div id="toast"></div>
 
-        let peer, conn, myRole;
-        let currentDice = 0;
-        
-        let state = {
-            turn: 1,
-            p1: { pions: [0, 0, -1, -1], score: 0, shield: [-1,-1,-1,-1], inventory: [], activePowerIndex: null },
-            p2: { pions: [0, 0, -1, -1], score: 0, shield: [-1,-1,-1,-1], inventory: [], activePowerIndex: null },
-            powers: [
-                { type: '🛡️', pos: 7 },
-                { type: '🚀', pos: 15 },
-                { type: '🎯', pos: 23 }
-            ],
-            powerTimer: 0,
-            lastDice: 0,
-            winner: 0
-        };
+<script>
+'use strict';
 
-        let localState = JSON.parse(JSON.stringify(state));
+/* =====================================================================
+   1. BOARD GEOMETRY (9 x 9 mini board)
+   ===================================================================== */
+// The 28 squares of the loop, clockwise, as [column, row].
+const TRACK = [[5,0],[5,1],[5,2],[6,3],[7,3],[8,3],[8,4],[8,5],[7,5],[6,5],[5,6],[5,7],[5,8],[4,8],
+               [3,8],[3,7],[3,6],[2,5],[1,5],[0,5],[0,4],[0,3],[1,3],[2,3],[3,2],[3,1],[3,0],[4,0]];
+const START = { green: 1, yellow: 8, blue: 15, red: 22 };      // index in TRACK
+const SAFE = [1, 8, 15, 22];                                    // the 4 star squares
+const HOMECOL = { green: [[4,1],[4,2]], yellow: [[7,4],[6,4]], blue: [[4,7],[4,6]], red: [[1,4],[2,4]] };
+const BASE = { red: [0,0], green: [6,0], yellow: [6,6], blue: [0,6] };
+const PAL = {
+  red:    ['#ff8a80', '#e8453c', '#a92b24'],
+  green:  ['#7ee6a0', '#2db35d', '#19773b'],
+  yellow: ['#ffe27a', '#f4c21f', '#b98d0b'],
+  blue:   ['#86c4ff', '#2e8ae6', '#1a5aa8'],
+};
+// Pawn position: -1 = at home base, 0..26 = on the loop (relative to own start),
+// 27..28 = own coloured lane, 29 = finished (centre).
+const LAST = 26, DONE = 29;
+const WIN_POINTS = 3, ITEM_CAP = 2, TURN_MS = 15000;
+const ITEMS = { x2: '⚡', pick: '🎯', shield: '🛡️' };
 
-        function getCenter(elId) {
-            let el = document.getElementById(elId);
-            if (!el) return {x: 170, y: 170};
-            let boardRect = document.getElementById('board').getBoundingClientRect();
-            let elRect = el.getBoundingClientRect();
-            return {
-                x: elRect.left - boardRect.left + elRect.width/2,
-                y: elRect.top - boardRect.top + elRect.height/2
-            };
-        }
+function globalOf(color, pos) { return pos >= 0 && pos <= LAST ? (START[color] + pos) % 28 : -1; }
 
-        function drawBoard() {
-            const board = document.getElementById('board');
-            board.innerHTML = '';
-            
-            const allBases = [
-                { c: 'red', r: 1, col: 1, bg: '#F8F9FA' },
-                { c: 'green', r: 1, col: 7, bg: '#F8F9FA' },
-                { c: 'blue', r: 7, col: 1, bg: '#F8F9FA' },
-                { c: 'yellow', r: 7, col: 7, bg: '#F8F9FA' }
-            ];
-            
-            allBases.forEach(b => {
-                const baseEl = document.createElement('div');
-                baseEl.className = `base base-${b.c}`;
-                baseEl.style.gridArea = `${b.r} / ${b.col} / ${b.r + 3} / ${b.col + 3}`;
-                
-                const inner = document.createElement('div');
-                inner.className = 'base-inner';
-                for(let i=0; i<4; i++) {
-                    const circle = document.createElement('div');
-                    circle.className = 'base-circle';
-                    circle.id = `base-${b.c}-${i}`;
-                    inner.appendChild(circle);
-                }
-                baseEl.appendChild(inner);
-                board.appendChild(baseEl);
-            });
+// Centre of a pawn's spot in board units (0..9), before stacking offsets.
+function spotOf(color, i, pos) {
+  if (pos < 0) {
+    const [bx, by] = BASE[color];
+    return [bx + 1.5 + (i % 2 ? .5 : -.5), by + 1.5 + (i < 2 ? -.5 : .5)];
+  }
+  if (pos === DONE) {
+    const spread = [-.42, -.14, .14, .42][i];
+    if (color === 'green') return [4.5 + spread, 3.95];
+    if (color === 'blue') return [4.5 + spread, 5.55];
+    if (color === 'red') return [3.6, 4.6 + spread];
+    return [5.4, 4.6 + spread];
+  }
+  if (pos <= LAST) { const [x, y] = TRACK[globalOf(color, pos)]; return [x + .5, y + .5]; }
+  const [x, y] = HOMECOL[color][pos - 27];
+  return [x + .5, y + .5];
+}
 
-            const center = document.createElement('div');
-            center.className = 'home-center';
-            center.style.gridArea = '4 / 4 / 7 / 7';
-            center.id = 'home-center';
-            center.innerText = '★';
-            board.appendChild(center);
+/* =====================================================================
+   2. GAME RULES (pure functions: state in -> new state out)
+   ===================================================================== */
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const rand6 = () => 1 + Math.floor(Math.random() * 6);
 
-            const safeColors = {
-                1: 'rgba(56, 176, 0, 0.2)',    // Green
-                8: 'rgba(255, 190, 11, 0.2)',  // Yellow
-                15: 'rgba(58, 134, 255, 0.2)', // Blue
-                22: 'rgba(255, 0, 110, 0.2)'   // Red
-            };
+function newPlayer(color, name) {
+  return { color, name, pawns: [0, 0, -1, -1], shield: [0, 0, 0, 0], score: 0, items: { x2: 0, pick: 0, shield: 0 } };
+}
+function newGame(names, starter) {
+  return {
+    seq: 0, game: Math.random().toString(36).slice(2, 8),
+    players: [newPlayer('blue', names[0]), newPlayer('green', names[1])],
+    turn: starter, phase: 'roll', face: 0, dice: 0, x2: false, sixes: 0, burn: false,
+    rollId: 0, moveId: 0, lastMove: null, winner: -1,
+    powers: [{ type: 'shield', cell: 5, wait: 0 }, { type: 'shield', cell: 19, wait: 0 },
+             { type: 'pick', cell: 12, wait: 0 }, { type: 'x2', cell: 26, wait: 0 }],
+  };
+}
+function canMovePawn(s, i) {
+  if (s.phase !== 'move' || s.burn) return false;
+  const pos = s.players[s.turn].pawns[i];
+  if (pos === DONE) return false;
+  if (pos < 0) return s.face === 6;
+  return pos + s.dice <= DONE;
+}
+function legal(s) { return [0, 1, 2, 3].filter((i) => canMovePawn(s, i)); }
 
-            globalPath.forEach((p, index) => {
-                const cell = document.createElement('div');
-                cell.id = `cell-${index}`;
-                cell.className = 'path-cell';
-                cell.style.gridColumn = p.x + 1;
-                cell.style.gridRow = p.y + 1;
-                
-                if (safeZones.includes(index)) {
-                    cell.style.backgroundColor = safeColors[index];
-                    cell.innerHTML = '<span style="font-size: 16px; opacity: 0.6; color: ' + safeColors[index].replace('0.2', '1') + ';">★</span>';
-                }
-                
-                board.appendChild(cell);
-            });
+function applyRoll(s0, face, chosen) {
+  const s = clone(s0), P = s.players[s.turn];
+  let dice = face;
+  if (chosen) { P.items.pick--; s.x2 = false; }
+  else if (s.x2) { P.items.x2--; s.x2 = false; dice = face * 2; }
+  s.face = face; s.dice = dice; s.rollId++;
+  s.sixes = face === 6 ? s.sixes + 1 : 0;
+  s.burn = s.sixes >= 3;          // three 6s in a row: turn lost
+  s.phase = 'move';
+  return s;
+}
+function applyArmX2(s0) { const s = clone(s0); s.x2 = !s.x2; return s; }
+function applyShield(s0, i) {
+  const s = clone(s0), P = s.players[s.turn];
+  P.items.shield--; P.shield[i] = 1;
+  return s;
+}
+function applyMove(s0, i) {
+  const s = clone(s0), me = s.turn, P = s.players[me], O = s.players[1 - me];
+  const from = P.pawns[i], to = from < 0 ? 0 : from + s.dice;
+  P.pawns[i] = to;
+  s.moveId++;
+  const lm = { id: s.moveId, p: me, i, from, to, cap: [], broke: [], got: null };
+  if (to <= LAST) {
+    const g = globalOf(P.color, to);
+    if (!SAFE.includes(g)) {
+      O.pawns.forEach((op, j) => {
+        if (globalOf(O.color, op) !== g) return;
+        if (O.shield[j]) { O.shield[j] = 0; lm.broke.push(j); }
+        else { O.pawns[j] = -1; P.score++; lm.cap.push(j); }
+      });
+    }
+    const t = s.powers.find((w) => w.cell === g);
+    if (t) { if (P.items[t.type] < ITEM_CAP) P.items[t.type]++; lm.got = t.type; t.cell = -1; t.wait = 2; }
+  } else {
+    P.shield[i] = 0;
+  }
+  if (to === DONE) P.score++;
+  s.lastMove = lm;
+  if (P.score >= WIN_POINTS) { s.phase = 'over'; s.winner = me; return s; }
+  const extra = s.face === 6 || lm.cap.length > 0 || to === DONE;
+  return extra ? rollAgain(s) : endTurn(s);
+}
+function applySkip(s0) { const s = clone(s0); return s.face === 6 && !s.burn ? rollAgain(s) : endTurn(s); }
+function rollAgain(s) { s.phase = 'roll'; s.dice = 0; s.burn = false; return s; }
+function endTurn(s) {
+  s.turn = 1 - s.turn; s.phase = 'roll'; s.dice = 0; s.sixes = 0; s.x2 = false; s.burn = false;
+  // Picked-up items come back on a random free square after 2 turns.
+  s.powers.forEach((t) => {
+    if (t.cell >= 0 || --t.wait > 0) return;
+    const used = new Set(s.powers.filter((w) => w.cell >= 0).map((w) => w.cell));
+    s.players.forEach((P) => P.pawns.forEach((p) => used.add(globalOf(P.color, p))));
+    const free = [];
+    for (let g = 0; g < 28; g++) if (!SAFE.includes(g) && !used.has(g)) free.push(g);
+    if (free.length) {
+      t.cell = free[Math.floor(Math.random() * free.length)];
+      t.type = ['x2', 'pick', 'shield'][Math.floor(Math.random() * 3)];
+    }
+  });
+  return s;
+}
 
-            const homeCells = [
-                { c: 'blue', paths: homePaths.blue, bg: 'rgba(58, 134, 255, 0.1)' },
-                { c: 'green', paths: homePaths.green, bg: 'rgba(56, 176, 0, 0.1)' }
-            ];
-            homeCells.forEach(hc => {
-                hc.paths.forEach((p, idx) => {
-                    const cell = document.createElement('div');
-                    cell.id = `home-${hc.c}-${idx}`;
-                    cell.className = 'path-cell';
-                    cell.style.gridColumn = p.x + 1;
-                    cell.style.gridRow = p.y + 1;
-                    cell.style.backgroundColor = hc.bg;
-                    board.appendChild(cell);
-                });
-            });
-        }
+/* ---------- Computer player (also used when time runs out) ---------- */
+function threatened(s, oppIdx, g) {
+  const O = s.players[oppIdx];
+  return O.pawns.some((op) => {
+    if (op < 0 || op > LAST) return false;
+    const d = (g - globalOf(O.color, op) + 28) % 28;
+    return d >= 1 && d <= 6 && op + d <= LAST;
+  });
+}
+function scoreMove(s, i, dice, face) {
+  const me = s.turn, P = s.players[me], O = s.players[1 - me];
+  const from = P.pawns[i], to = from < 0 ? 0 : from + dice;
+  let sc = to * .5 + Math.random() * 3;
+  if (to === DONE) sc += 100;
+  if (from < 0) sc += 55;
+  if (to > LAST && to < DONE) sc += 30;
+  if (to <= LAST) {
+    const g = globalOf(P.color, to);
+    if (SAFE.includes(g)) sc += 15;
+    else {
+      O.pawns.forEach((op, j) => { if (globalOf(O.color, op) === g) sc += O.shield[j] ? 10 : 90; });
+      if (!P.shield[i] && threatened(s, 1 - me, g)) sc -= 40;
+    }
+    if (s.powers.some((t) => t.cell === g)) sc += 20;
+  }
+  if (from >= 0 && from <= LAST) {
+    const gf = globalOf(P.color, from);
+    if (!SAFE.includes(gf) && !P.shield[i] && threatened(s, 1 - me, gf)) sc += 25;
+  }
+  return sc;
+}
+function bestMove(s) {
+  let best = -1, bs = -1e9;
+  for (const i of legal(s)) { const v = scoreMove(s, i, s.dice, s.face); if (v > bs) { bs = v; best = i; } }
+  return best;
+}
+// Computer's decision before rolling: use an item or just roll. Returns a new state.
+function botRollPhase(s) {
+  const P = s.players[s.turn];
+  if (P.items.shield > 0) {
+    const i = P.pawns.findIndex((p, k) => p >= 0 && p <= LAST && !P.shield[k] &&
+      !SAFE.includes(globalOf(P.color, p)) && threatened(s, 1 - s.turn, globalOf(P.color, p)));
+    if (i >= 0) return applyShield(s, i);
+  }
+  if (P.items.pick > 0) {
+    for (let n = 6; n >= 1; n--) {
+      const t = applyRoll(s, n, true);
+      if (legal(t).some((i) => scoreMove(t, i, t.dice, t.face) >= 85)) return t;
+    }
+  }
+  if (P.items.x2 > 0 && !s.x2 && Math.random() < .35) return applyArmX2(s);
+  return applyRoll(s, rand6(), false);
+}
 
-        function createPawns() {
-            const board = document.getElementById('board');
-            for(let i=0; i<4; i++) {
-                let p1 = document.createElement('div');
-                p1.id = `p1-${i}`;
-                p1.className = 'pawn';
-                p1.style.backgroundColor = 'var(--blue)';
-                p1.onclick = () => moveSelectedPion(i);
-                board.appendChild(p1);
-                
-                let p2 = document.createElement('div');
-                p2.id = `p2-${i}`;
-                p2.className = 'pawn';
-                p2.style.backgroundColor = 'var(--green)';
-                p2.onclick = () => moveSelectedPion(i);
-                board.appendChild(p2);
-            }
-        }
+/* =====================================================================
+   3. ONLINE PLAY (public MQTT servers over secure websockets)
+   Every message goes to all servers at once; the first copy that arrives wins.
+   ===================================================================== */
+const NS = 'ludomini-k7q2/v1/';
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081'];
+let msgCounter = 0;
+const Net = {
+  clients: [], topic: '', seen: new Set(), onMsg: null, onConnect: null, onStatus: null,
+  open(code, onMsg, onConnect, onStatus) {
+    this.close();
+    this.topic = NS + code; this.onMsg = onMsg; this.onConnect = onConnect; this.onStatus = onStatus;
+    if (!window.mqtt) { onStatus && onStatus(0); return; }
+    BROKERS.forEach((url, k) => {
+      let c;
+      try {
+        c = mqtt.connect(url, { clientId: 'lm_' + myId + '_' + k + '_' + Math.random().toString(36).slice(2, 6),
+          clean: true, keepalive: 20, reconnectPeriod: 2500, connectTimeout: 8000 });
+      } catch (e) { return; }
+      c.on('connect', () => { c.subscribe(this.topic, { qos: 1 }); this.status(); this.onConnect && this.onConnect(); });
+      c.on('close', () => this.status());
+      c.on('offline', () => this.status());
+      c.on('error', () => {});
+      c.on('message', (t, buf) => { let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; } this.recv(m); });
+      this.clients.push(c);
+    });
+  },
+  connectedCount() { return this.clients.filter((c) => c.connected).length; },
+  status() { this.onStatus && this.onStatus(this.connectedCount()); },
+  recv(m) {
+    if (!m || !m.f || m.f === myId || (m.to && m.to !== myId)) return;
+    const key = m.f + ':' + m.m;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    if (this.seen.size > 600) this.seen = new Set([...this.seen].slice(-300));
+    this.onMsg && this.onMsg(m);
+  },
+  send(obj) {
+    obj.f = myId; obj.m = Date.now().toString(36) + '.' + (++msgCounter);
+    const payload = JSON.stringify(obj);
+    this.clients.forEach((c) => { try { c.publish(this.topic, payload, { qos: 1 }); } catch (e) {} });
+  },
+  close() { this.clients.forEach((c) => { try { c.end(true); } catch (e) {} }); this.clients = []; },
+};
 
-        const peerConfig = {
-            config: {
-                'iceServers': [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' },
-                    { urls: 'stun:openrelay.metered.ca:80' },
-                    {
-                        urls: 'turn:openrelay.metered.ca:80',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    }
-                ]
-            },
-            debug: 3
-        };
+/* =====================================================================
+   4. APP STATE, STORAGE
+   ===================================================================== */
+const $ = (q) => document.querySelector(q);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const rid = () => Math.random().toString(36).slice(2, 10);
+function tabId() {   // one id per browser tab (two tabs on one phone = two players)
+  try { let v = sessionStorage.getItem('lm.id'); if (!v) { v = rid(); sessionStorage.setItem('lm.id', v); } return v; }
+  catch (e) { return rid(); }
+}
+const clean = (t) => String(t || '').replace(/[<>&"]/g, '').trim().slice(0, 14);
 
-        window.onload = () => {
-            // Generate a random 4-digit code
-            const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            // Connect to PeerJS using this specific ID
-            peer = new Peer('ludomini-' + randomCode, peerConfig);
-            
-            peer.on('open', id => { 
-                // Display only the 4-digit code to the user
-                document.getElementById('my-peer-id').innerText = randomCode; 
-            });
-            
-            peer.on('error', err => {
-                console.error("Peer Error:", err);
-                alert("Connection Error: " + err.type + "\n" + err.message);
-            });
+let myId = tabId();
+let mode = null;        // 'bot' | 'online'
+let role = null;        // 'host' | 'guest'
+let me = 0;             // my player index: 0 = blue, 1 = green
+let S = null;           // current game state (the truth)
+let code = null, peerId = null, peerName = 'Friend', myName = 'You';
+let lastSeen = 0, inGame = false, probing = false, firstConnect = true;
+let joinTimer = null, pingTimer = null, aim = null, sound = true;
 
-            peer.on('connection', c => {
-                alert("HOST: Incoming connection received from client!");
-                conn = c; myRole = 1;
-                document.getElementById('status-text').innerText = "Connecting...";
-                
-                setTimeout(() => {
-                    if (conn && conn.peerConnection) {
-                        conn.peerConnection.addEventListener('iceconnectionstatechange', () => {
-                            if (conn.peerConnection.iceConnectionState === 'failed') {
-                                alert("HOST: WebRTC ICE Connection Failed. Firewall is blocking P2P.");
-                            }
-                        });
-                    }
-                }, 1000);
-                
-                c.on('open', () => { 
-                    alert("HOST: Connection successfully established!");
-                    startGame(); 
-                    sync(); 
-                });
-                
-                c.on('error', err => {
-                    alert("HOST Data connection error: " + err);
-                });
-                
-                c.on('close', () => {
-                    alert("Opponent disconnected.");
-                });
-            });
-        };
+function persist() {
+  if (mode !== 'online') return;
+  store.set('lm.session', { role, code, myId, peerId, peerName, me, S, t: Date.now() });
+}
+const peerOnline = () => mode !== 'online' || Date.now() - lastSeen < 12000;
 
-        function joinGame() {
-            const code = document.getElementById('target-id').value.trim();
-            if (!code) return;
-            
-            const fullId = 'ludomini-' + code;
-            
-            alert("CLIENT: Attempting to connect to host...");
-            document.getElementById('status-text').innerText = "Connecting to " + code + "...";
-            conn = peer.connect(fullId, { reliable: false });
-            myRole = 2;
-            
-            setTimeout(() => {
-                if (conn && conn.peerConnection) {
-                    conn.peerConnection.addEventListener('iceconnectionstatechange', () => {
-                        if (conn.peerConnection.iceConnectionState === 'failed') {
-                            alert("CLIENT: WebRTC ICE Connection Failed. Mobile carrier is blocking P2P.");
-                        }
-                    });
-                }
-            }, 1000);
-            
-            conn.on('open', () => { 
-                alert("CLIENT: Connection successfully established!");
-                startGame(); 
-            });
-            
-            conn.on('error', err => {
-                alert("CLIENT Join Error: " + err);
-            });
-            
-            conn.on('close', () => {
-                alert("Connection lost with host.");
-            });
-        }
+/* =====================================================================
+   5. SCREENS AND MENU
+   ===================================================================== */
+function show(id) { document.querySelectorAll('.screen').forEach((e) => e.classList.toggle('active', e.id === id)); }
+function toast(t, ms = 2200) {
+  const el = $('#toast'); el.textContent = t; el.style.display = 'block';
+  clearTimeout(toast.h); toast.h = setTimeout(() => (el.style.display = 'none'), ms);
+}
+function readName() { myName = clean($('#name').value) || 'Player'; store.set('lm.name', myName); return myName; }
 
-        function startGame() {
-            document.getElementById('setup-screen').classList.remove('active');
-            document.getElementById('game-screen').classList.add('active');
-            drawBoard();
-            createPawns();
+function initMenu() {
+  $('#name').value = store.get('lm.name') || '';
+  const q = new URLSearchParams(location.search).get('room');
+  if (q && /^\d{4}$/.test(q)) $('#join-code').value = q;
+  const sess = store.get('lm.session');
+  if (sess && sess.S && Date.now() - sess.t < 3 * 3600e3 && sess.S.phase !== 'over') {
+    const b = $('#btn-resume'); b.style.display = 'block'; b.textContent = 'Resume game (room ' + sess.code + ')';
+  }
+}
+$('#btn-create').onclick = () => { readName(); unlockAudio(); createRoom(); };
+$('#btn-join').onclick = () => {
+  readName(); unlockAudio();
+  const c = $('#join-code').value.trim();
+  if (!/^\d{4}$/.test(c)) { $('#menu-err').textContent = 'Enter the 4-digit code of your friend.'; return; }
+  joinRoom(c);
+};
+$('#join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#btn-join').click(); });
+$('#btn-bot').onclick = () => { readName(); unlockAudio(); startBot(); };
+$('#btn-resume').onclick = () => { unlockAudio(); resume(); };
+$('#btn-cancel').onclick = () => { stopJoin(); Net.close(); store.del('lm.session'); backToMenu(); };
+$('#btn-share').onclick = shareInvite;
 
-            conn.on('data', d => {
-                state = d;
-                currentDice = 0; 
-                processUIUpdate();
-            });
-            setTimeout(() => { processUIUpdate(true); }, 500); 
-        }
+function backToMenu(msg) {
+  inGame = false; mode = null; S = null; aim = null;
+  clearInterval(pingTimer); clearTimers(); closeSheet();
+  $('#menu-err').textContent = msg || '';
+  $('#btn-resume').style.display = 'none';
+  initMenu();
+  show('menu');
+}
+function inviteLink() { return location.origin + location.pathname + '?room=' + code; }
+async function shareInvite() {
+  const text = 'Play Ludo with me! Room code: ' + code;
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Ludo Mini', text, url: inviteLink() }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + '\n' + inviteLink()); toast('Invite link copied'); }
+  catch (e) { toast('Code: ' + code); }
+}
+function setNetStatus(n) {
+  const ok = n > 0;
+  ['#wait-net', '#net-chip'].forEach((q) => {
+    const el = $(q); el.classList.toggle('ok', ok);
+    el.querySelector('span').textContent = q === '#net-chip' ? (ok ? 'Online' : 'Offline')
+      : ok ? 'Connected to the game server' : 'Connecting to the game server…';
+  });
+}
 
-        function getDiceFace(d) {
-            if (d > 6) return d;
-            const faces = ["🎲", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-            return faces[d] || "🎲";
-        }
+/* ---------- Host ---------- */
+function createRoom() {
+  mode = 'online'; role = 'host'; me = 0; S = null; peerId = null; inGame = false; firstConnect = true;
+  code = String(1000 + Math.floor(Math.random() * 9000));
+  $('#wait-host').style.display = ''; $('#wait-guest').style.display = 'none';
+  $('#wait-code').textContent = code; $('#wait-msg').textContent = 'Waiting for your friend…';
+  show('wait');
+  Net.open(code, onNet, onNetConnect, setNetStatus);
+}
+/* ---------- Guest ---------- */
+function joinRoom(c) {
+  mode = 'online'; role = 'guest'; me = 1; S = null; peerId = null; inGame = false; firstConnect = true; code = c;
+  $('#wait-host').style.display = 'none'; $('#wait-guest').style.display = '';
+  $('#wait-gcode').textContent = code; $('#wait-msg').textContent = 'Looking for the game…';
+  show('wait');
+  Net.open(code, onNet, onNetConnect, setNetStatus);
+  const deadline = Date.now() + 25000;
+  stopJoin();
+  joinTimer = setInterval(() => {
+    if (Date.now() > deadline) {
+      stopJoin(); Net.close(); store.del('lm.session');
+      backToMenu('No game found with code ' + code + '. Check the code: your friend must keep the game open on their screen.');
+      return;
+    }
+    sendJoin();
+  }, 2000);
+}
+function sendJoin() { if (role === 'guest') Net.send({ t: 'join', name: myName }); }
+function stopJoin() { clearInterval(joinTimer); joinTimer = null; }
 
-        function togglePower(index) {
-            if (state.turn !== myRole || currentDice !== 0) return;
-            let pData = state[`p${myRole}`];
-            if (pData.activePowerIndex === index) {
-                pData.activePowerIndex = null;
-            } else {
-                pData.activePowerIndex = index;
-            }
-            sync();
-        }
+/* ---------- Resume after closing / reloading the page ---------- */
+function resume() {
+  const s = store.get('lm.session'); if (!s) return backToMenu();
+  mode = 'online'; role = s.role; code = s.code; me = s.me; peerId = s.peerId; peerName = s.peerName; S = s.S;
+  myId = s.myId; try { sessionStorage.setItem('lm.id', myId); } catch (e) {}
+  myName = (S && S.players[me].name) || readName();
+  firstConnect = false; lastSeen = Date.now();
+  Net.open(code, onNet, onNetConnect, setNetStatus);
+  enterGame();
+}
 
-        function rollDice() {
-            let pData = state[`p${myRole}`];
-            if (state.turn !== myRole || currentDice !== 0 || pData.activePowerIndex !== null && pData.inventory[pData.activePowerIndex] === '🎯' || state.winner > 0) return;
-            
-            let d = Math.floor(Math.random() * 6) + 1;
-            
-            if (pData.activePowerIndex !== null && pData.inventory[pData.activePowerIndex] === '🚀') {
-                d *= 2;
-                pData.inventory.splice(pData.activePowerIndex, 1);
-                pData.activePowerIndex = null;
-            }
-            
-            currentDice = d;
-            state.lastDice = d;
-            
-            const diceEl = document.getElementById('dice');
-            diceEl.innerText = '🎲';
-            diceEl.classList.add('rolling');
-            diceEl.classList.remove('my-turn');
-            
-            setTimeout(() => {
-                diceEl.classList.remove('rolling');
-                processRoll(d);
-            }, 400);
-        }
+function onNetConnect() {
+  if (role === 'host' && firstConnect && !inGame) {
+    firstConnect = false; probing = true;
+    Net.send({ t: 'probe' });
+    setTimeout(() => (probing = false), 2500);
+  }
+  if (role === 'guest' && !inGame) sendJoin();
+  if (inGame) Net.send({ t: 'sync' });
+}
 
-        function chooseDice(n) {
-            let pData = state[`p${myRole}`];
-            if (pData.activePowerIndex !== null && pData.inventory[pData.activePowerIndex] === '🎯') {
-                pData.inventory.splice(pData.activePowerIndex, 1);
-                pData.activePowerIndex = null;
-            }
-            
-            currentDice = n;
-            state.lastDice = n;
-            processRoll(n);
-        }
+function onNet(m) {
+  if (peerId && m.f === peerId) lastSeen = Date.now();
+  switch (m.t) {
+    case 'probe':      // someone else is creating this same code: tell them it is taken
+      if (role === 'host') Net.send({ t: 'busy', to: m.f });
+      break;
+    case 'busy':
+      if (probing && role === 'host' && !peerId) { probing = false; createRoom(); }
+      break;
+    case 'join':
+      if (role !== 'host') break;
+      if (peerId && peerId !== m.f) { Net.send({ t: 'full', to: m.f }); break; }
+      peerId = m.f; peerName = clean(m.name) || 'Friend'; lastSeen = Date.now();
+      if (!S) { S = newGame([myName, peerName], Math.random() < .5 ? 0 : 1); S.seq = 1; }
+      Net.send({ t: 'welcome', to: m.f, name: myName, s: S });
+      persist();
+      if (!inGame) enterGame();
+      break;
+    case 'welcome':
+      if (role !== 'guest' || (peerId && peerId !== m.f) || !m.s) break;
+      stopJoin();
+      peerId = m.f; peerName = clean(m.name) || 'Friend'; lastSeen = Date.now();
+      if (!S || m.s.game !== S.game || m.s.seq >= S.seq) S = m.s;
+      else Net.send({ t: 'state', s: S });
+      persist();
+      if (!inGame) enterGame(); else push(S);
+      break;
+    case 'full':
+      if (role === 'guest' && !inGame) { stopJoin(); Net.close(); backToMenu('This room already has two players.'); }
+      break;
+    case 'state':
+      if (m.f !== peerId || !m.s) break;
+      // Newest state wins; on a tie the host's version wins.
+      if (!S || m.s.seq > S.seq || (m.s.seq === S.seq && role === 'guest' && JSON.stringify(m.s) !== JSON.stringify(S))) {
+        S = m.s; persist(); if (inGame) push(S);
+      }
+      break;
+    case 'sync':
+      if (m.f === peerId && S) Net.send({ t: 'state', to: m.f, s: S });
+      break;
+    case 'emoji':
+    case 'chat':
+      if (m.f === peerId) { bubble(1, clean(m.x) || m.x, m.t === 'emoji'); sfx('pop'); }
+      break;
+    case 'rematch':
+      if (role === 'host' && m.f === peerId && S && S.phase === 'over') startRematch();
+      break;
+    case 'leave':
+      if (m.f === peerId) { Net.close(); store.del('lm.session'); clearTimers(); sheet(`<div class="win-title">😕</div><p>${esc(peerName)} left the game.</p>`, [['Menu', () => backToMenu()]]); }
+      break;
+  }
+}
 
-        function processRoll(d) {
-            document.getElementById('dice').innerText = getDiceFace(d);
-            let pData = state[`p${myRole}`];
-            let canMove = false;
-            pData.pions.forEach(pos => {
-                if (pos === -1 && (d === 6 || d === 12)) canMove = true;
-                if (pos >= 0 && pos + d <= 29) canMove = true;
-            });
-            
-            sync();
-            if (!canMove) {
-                setTimeout(() => { finishMove(d === 6 || d === 12); }, 1000);
-            }
-        }
+/* ---------- Vs computer ---------- */
+function startBot() {
+  mode = 'bot'; role = null; me = 0; peerName = 'Computer';
+  S = newGame([myName, 'Computer'], Math.random() < .5 ? 0 : 1); S.seq = 1;
+  enterGame();
+}
+function startRematch() {
+  const ns = newGame([S.players[0].name, S.players[1].name], S.winner === 0 ? 1 : 0);
+  commit(ns);
+}
 
-        function moveSelectedPion(idx) {
-            if (state.turn !== myRole || currentDice === 0 || state.winner > 0) return;
-            
-            let pKey = `p${myRole}`;
-            let pData = state[pKey];
-            let pos = pData.pions[idx];
-            
-            let isValid = false;
-            let newPos = pos;
-            if (pos === -1 && (currentDice === 6 || currentDice === 12)) {
-                isValid = true; newPos = 0; 
-            } else if (pos >= 0 && pos + currentDice <= 29) {
-                isValid = true; newPos = pos + currentDice;
-            }
-            
-            if (!isValid) return;
+/* =====================================================================
+   6. RENDERING
+   ===================================================================== */
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pct = (v) => (v * 100 / 9) + '%';
+let flip = false;                 // guest sees the board turned so that their pawns are at the bottom
+const V = (x, y) => (flip ? [9 - x, 9 - y] : [x, y]);
+let pawnEls = [[], []];
+let shown = null, busy = false, queue = Promise.resolve();
 
-            // Apply Shield if active
-            if (pData.activePowerIndex !== null && pData.inventory[pData.activePowerIndex] === '🛡️') {
-                pData.shield[idx] = 1;
-                pData.inventory.splice(pData.activePowerIndex, 1);
-                pData.activePowerIndex = null;
-            }
-            
-            pData.pions[idx] = newPos;
-            let extraRoll = false;
-            let opRole = myRole === 1 ? 2 : 1;
-            let opKey = `p${opRole}`;
-            let opData = state[opKey];
-            
-            if (newPos >= 0 && newPos <= 26) {
-                let myGlobalIndex = (startIndices[colors[pKey]] + newPos) % 28;
-                
-                // Eat Check - Skip if landing on a protected safe zone!
-                if (!safeZones.includes(myGlobalIndex)) {
-                    opData.pions.forEach((oPos, oIdx) => {
-                        if (oPos >= 0 && oPos <= 26) {
-                            let oGlobalIndex = (startIndices[colors[opKey]] + oPos) % 28;
-                            if (myGlobalIndex === oGlobalIndex) {
-                                if (opData.shield[oIdx] === 1) {
-                                    opData.shield[oIdx] = -1;
-                                } else {
-                                    opData.pions[oIdx] = -1;
-                                    pData.score += 1;
-                                    extraRoll = true;
-                                }
-                            }
-                        }
-                    });
-                }
+function pawnSVG(color) {
+  const d = PAL[color][2];
+  return `<svg viewBox="0 0 40 52" aria-hidden="true">
+    <ellipse cx="20" cy="47" rx="14" ry="4" fill="rgba(0,0,0,.35)"/>
+    <path d="M7 45 C7 41 12 39 14 33 L16 27 L24 27 L26 33 C28 39 33 41 33 45 C33 48.5 7 48.5 7 45Z" fill="url(#bd-${color})" stroke="${d}" stroke-width="1.3"/>
+    <circle cx="20" cy="17" r="11" fill="url(#hd-${color})" stroke="${d}" stroke-width="1.3"/>
+    <ellipse cx="16" cy="12.5" rx="4" ry="2.6" fill="#fff" opacity=".65"/></svg>`;
+}
+function initGradients() {
+  $('#grad-defs').innerHTML = Object.entries(PAL).map(([c, [l, m, d]]) => `
+    <radialGradient id="hd-${c}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="${l}"/><stop offset=".55" stop-color="${m}"/><stop offset="1" stop-color="${d}"/></radialGradient>
+    <linearGradient id="bd-${c}" x1="0" x2="1"><stop offset="0" stop-color="${d}"/><stop offset=".35" stop-color="${l}"/><stop offset=".7" stop-color="${m}"/><stop offset="1" stop-color="${d}"/></linearGradient>`).join('');
+}
 
-                // Power-up Pick up
-                let pwIndex = state.powers.findIndex(p => p.pos === myGlobalIndex);
-                if (pwIndex !== -1) {
-                    let pw = state.powers[pwIndex];
-                    pData.inventory.push(pw.type);
-                    state.powers[pwIndex].pos = -1;
-                    state.powerTimer = 0; 
-                }
-            }
-            
-            if (newPos === 29) { pData.score += 1; extraRoll = true; }
-            if (currentDice === 6 || currentDice === 12) extraRoll = true;
-            if (pData.score >= 3) state.winner = myRole;
-            
-            animatePawn(pKey, idx, pos, newPos, () => { finishMove(extraRoll); });
-            localState[pKey].pions[idx] = newPos;
-        }
+function place(el, x, y, w, h) {   // rectangle in logical board units
+  const X = flip ? 9 - x - w : x, Y = flip ? 9 - y - h : y;
+  el.style.left = pct(X); el.style.top = pct(Y); el.style.width = pct(w); el.style.height = pct(h);
+}
+function add(cls, html) { const el = document.createElement('div'); el.className = cls; if (html) el.innerHTML = html; $('#board').appendChild(el); return el; }
 
-        function finishMove(extraRoll = false) {
-            if (state.winner > 0) { sync(); return; }
-            state[`p${state.turn}`].activePowerIndex = null; 
+function buildBoard() {
+  flip = mode === 'online' && me === 1;
+  $('#board').innerHTML = '';
+  const active = S.players.map((p) => p.color);
+  Object.entries(BASE).forEach(([c, [bx, by]]) => {
+    const b = add('base', '<div class="base-inner"></div>');
+    b.style.background = PAL[c][1];
+    place(b, bx, by, 3, 3);
+    for (let i = 0; i < 4; i++) {
+      const [sx, sy] = spotOf(c, i, -1), s = add('slot');
+      const [X, Y] = V(sx, sy);
+      s.style.left = pct(X); s.style.top = pct(Y); s.style.width = pct(.62); s.style.height = pct(.62);
+    }
+    if (active.includes(c)) {
+      const k = active.indexOf(c);
+      const tag = add('tag', `<span class="pts" id="pts-${k}">0/${WIN_POINTS}</span>`);
+      place(tag, bx, by + (flip ? 2.55 : 0.03), 3, .42);
+      const nm = add('tag', `<span id="bname-${k}"></span>`);
+      place(nm, bx, by + (flip ? 0.03 : 2.55), 3, .42);
+    }
+  });
+  TRACK.forEach(([x, y], g) => {
+    const cell = add('cell'); place(cell, x, y, 1, 1);
+    const col = Object.keys(START).find((c) => START[c] === g);
+    if (col) { cell.style.background = PAL[col][1]; cell.classList.add('star'); }
+  });
+  Object.entries(HOMECOL).forEach(([c, cells]) => cells.forEach(([x, y]) => {
+    const cell = add('cell'); place(cell, x, y, 1, 1); cell.style.background = PAL[c][1];
+  }));
+  const ctr = add('center', `<svg viewBox="0 0 3 3" style="${flip ? 'transform:rotate(180deg)' : ''}">
+    <polygon points="0,0 3,0 1.5,1.5" fill="${PAL.green[1]}"/><polygon points="3,0 3,3 1.5,1.5" fill="${PAL.yellow[1]}"/>
+    <polygon points="0,3 3,3 1.5,1.5" fill="${PAL.blue[1]}"/><polygon points="0,0 0,3 1.5,1.5" fill="${PAL.red[1]}"/></svg>`);
+  place(ctr, 3, 3, 3, 3);
+  pawnEls = [[], []];
+  S.players.forEach((P, p) => {
+    for (let i = 0; i < 4; i++) {
+      const el = add('pawn', pawnSVG(P.color));
+      el.onclick = () => onPawn(p, i);
+      pawnEls[p].push(el);
+    }
+  });
+  ['#seat-0', '#seat-1'].forEach((q) => { $(q + ' .dice').innerHTML = '<i class="pip"></i>'.repeat(9); });
+  $('#seat-0 .dicebox').onclick = onDice;
+}
 
-            if (!extraRoll) {
-                state.turn = state.turn === 1 ? 2 : 1;
-                state.powerTimer++;
-                
-                if (state.powerTimer >= 2) {
-                    state.powers.forEach(pw => {
-                        if (pw.pos === -1) {
-                            let emptyCells = [];
-                            for(let i=0; i<28; i++) {
-                                let hasPawn = false;
-                                ['p1', 'p2'].forEach(pk => {
-                                    state[pk].pions.forEach(p => {
-                                        if (p >= 0 && p <= 26 && (startIndices[colors[pk]] + p)%28 === i) hasPawn = true;
-                                    });
-                                });
-                                // Don't spawn powerups on safe zones!
-                                if (!hasPawn && !state.powers.some(p => p.pos === i) && !safeZones.includes(i)) {
-                                    emptyCells.push(i);
-                                }
-                            }
-                            if (emptyCells.length > 0) pw.pos = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-                        }
-                    });
-                    state.powerTimer = 0;
-                }
-            }
-            currentDice = 0;
-            sync();
-        }
+const PIPS = { 1: [4], 2: [2, 6], 3: [2, 4, 6], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function setFace(diceEl, face) { diceEl.querySelectorAll('.pip').forEach((p, k) => p.classList.toggle('on', (PIPS[face] || []).includes(k))); }
+const seatOf = (p) => (p === me ? 0 : 1);
+const seatEl = (p) => $('#seat-' + seatOf(p));
 
-        function sync() { if(conn) conn.send(state); processUIUpdate(); }
+// Pawn positions with small offsets when several pawns share a square.
+function layout(s) {
+  const groups = {}, out = [[], []];
+  s.players.forEach((P, p) => P.pawns.forEach((pos, i) => {
+    const [x, y] = spotOf(P.color, i, pos);
+    out[p][i] = [x, y];
+    if (pos >= 0 && pos < DONE) { const k = x + ',' + y; (groups[k] = groups[k] || []).push([p, i]); }
+  }));
+  const OFF = { 2: [[-.17, 0], [.17, 0]], 3: [[-.17, -.12], [.17, -.12], [0, .14]], 4: [[-.17, -.12], [.17, -.12], [-.17, .14], [.17, .14]] };
+  Object.values(groups).forEach((g) => {
+    if (g.length < 2) return;
+    const offs = OFF[Math.min(g.length, 4)];
+    g.forEach(([p, i], k) => { const o = offs[k % offs.length]; out[p][i] = [out[p][i][0] + o[0], out[p][i][1] + o[1]]; });
+  });
+  return out;
+}
+function putPawn(el, x, y) {
+  const [X, Y] = V(x, y);
+  el.style.left = pct(X); el.style.top = pct(Y); el.style.zIndex = 10 + Math.round(Y * 10);
+}
+function floatText(x, y, text) {
+  const el = add('float', esc(text)); const [X, Y] = V(x, y);
+  el.style.left = pct(X); el.style.top = pct(Y);
+  setTimeout(() => el.remove(), 1200);
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-        function getPawnCoordinates(color, index, pos) {
-            if (pos === -1) return getCenter(`base-${color}-${index}`);
-            if (pos === 29) {
-                let hc = getCenter('home-center');
-                return { x: hc.x + (index * 8 - 12), y: hc.y + (index * 8 - 12) };
-            }
-            
-            let cellId = ''; let globalIndex = -1;
-            if (pos >= 0 && pos <= 26) {
-                globalIndex = (startIndices[color] + pos) % 28;
-                cellId = `cell-${globalIndex}`;
-            } else if (pos >= 27 && pos <= 28) {
-                cellId = `home-${color}-${pos - 27}`;
-            }
-            
-            let coords = getCenter(cellId);
-            let overlappingPawns = [];
-            if (pos >= 0 && pos <= 28) {
-                ['p1', 'p2'].forEach(pKey => {
-                    let pColor = pKey === 'p1' ? 'blue' : 'green';
-                    state[pKey].pions.forEach((oPos, oIndex) => {
-                        if (oPos === pos && color === pColor && pos >= 27) {
-                            overlappingPawns.push({color: pColor, index: oIndex});
-                        } else if (oPos >= 0 && oPos <= 26 && globalIndex !== -1) {
-                            let oGlobalIndex = (startIndices[pColor] + oPos) % 28;
-                            if (globalIndex === oGlobalIndex) overlappingPawns.push({color: pColor, index: oIndex});
-                        }
-                    });
-                });
-            }
-            
-            if (overlappingPawns.length > 1) {
-                let myOverlapIndex = overlappingPawns.findIndex(p => p.color === color && p.index === index);
-                const offsetAmt = 5;
-                const offsetArr = [{dx:-offsetAmt, dy:-offsetAmt}, {dx:offsetAmt, dy:-offsetAmt}, {dx:-offsetAmt, dy:offsetAmt}, {dx:offsetAmt, dy:offsetAmt}];
-                let myOffset = offsetArr[myOverlapIndex % 4] || {dx:0, dy:0};
-                coords.x += myOffset.dx; coords.y += myOffset.dy;
-            }
-            return coords;
-        }
+function push(s) {
+  const snap = clone(s);
+  queue = queue.then(() => draw(snap)).catch((e) => console.error(e));
+}
+async function draw(s) {
+  busy = true;
+  const prev = shown;
+  const sameGame = prev && prev.game === s.game;
+  if (sameGame && s.rollId !== prev.rollId && s.rollId > 0) await animDice(s);
+  if (sameGame && s.lastMove && (!prev.lastMove || s.lastMove.id !== prev.lastMove.id)) await animMove(prev, s);
+  shown = s;
+  paint(s);
+  busy = false;
+  afterPaint(s);
+}
+async function animDice(s) {
+  const box = seatEl(s.turn).querySelector('.dicebox'), d = box.querySelector('.dice');
+  box.classList.add('on'); box.classList.remove('ready', 'dim');
+  d.classList.add('rolling'); sfx('dice');
+  for (let k = 0; k < 6; k++) { setFace(d, rand6()); await wait(70); }
+  d.classList.remove('rolling');
+  setFace(d, s.face);
+  box.classList.toggle('doubled', s.dice > s.face);
+  await wait(150);
+}
+async function animMove(prev, s) {
+  const lm = s.lastMove, P = s.players[lm.p], el = pawnEls[lm.p][lm.i];
+  el.classList.remove('fly', 'can');
+  const steps = lm.from < 0 ? [0] : Array.from({ length: lm.to - lm.from }, (_, k) => lm.from + 1 + k);
+  for (const pos of steps) {
+    const [x, y] = spotOf(P.color, lm.i, pos);
+    putPawn(el, x, y);
+    el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
+    sfx('step');
+    await wait(lm.to === DONE && pos === DONE ? 220 : 160);
+  }
+  el.classList.remove('hop');
+  const [lx, ly] = spotOf(P.color, lm.i, lm.to);
+  if (lm.cap.length) { sfx('capture'); floatText(lx, ly, '+1'); vibrate(80); }
+  if (lm.broke.length) { sfx('shield'); floatText(lx, ly, '🛡️'); }
+  if (lm.to === DONE) { sfx('finish'); floatText(lx, ly, '+1'); }
+  if (lm.got) { sfx('pop'); floatText(lx, ly - .3, ITEMS[lm.got]); }
+  lm.cap.forEach((j) => pawnEls[1 - lm.p][j].classList.add('fly'));
+  if (lm.cap.length) await wait(80);
+}
 
-        function animatePawn(pKey, idx, oldPos, newPos, onComplete) {
-            if (oldPos === -1 || newPos === -1 || newPos === 29 || newPos - oldPos > 12) {
-                if(onComplete) onComplete(); return;
-            }
-            let path = [];
-            for (let p = oldPos + 1; p <= newPos; p++) path.push(p);
-            
-            const el = document.getElementById(`${pKey}-${idx}`);
-            let step = 0;
-            
-            function next() {
-                if (step >= path.length) { if(onComplete) onComplete(); return; }
-                let p = path[step];
-                localState[pKey].pions[idx] = p; 
-                let coords = getPawnCoordinates(colors[pKey], idx, p);
-                el.style.left = coords.x + 'px'; el.style.top = coords.y + 'px';
-                el.classList.add('jumping');
-                setTimeout(() => el.classList.remove('jumping'), 180);
-                step++;
-                setTimeout(next, 200);
-            }
-            next();
-        }
+function paint(s) {
+  const pos = layout(s);
+  const mine = s.turn === me && s.phase === 'move' && s.seq === S.seq;
+  const L = mine ? legal(s) : [];
+  s.players.forEach((P, p) => P.pawns.forEach((ps, i) => {
+    const el = pawnEls[p][i];
+    putPawn(el, pos[p][i][0], pos[p][i][1]);
+    el.classList.toggle('done', ps === DONE);
+    el.classList.toggle('shielded', !!P.shield[i]);
+    const shieldTarget = aim === 'shield' && p === me && ps >= 0 && ps <= LAST && !P.shield[i];
+    el.classList.toggle('can', (p === me && L.includes(i)) || shieldTarget);
+    setTimeout(() => el.classList.remove('fly'), 500);
+  }));
+  document.querySelectorAll('#board .power').forEach((e) => e.remove());
+  s.powers.forEach((t) => {
+    if (t.cell < 0) return;
+    const [x, y] = TRACK[t.cell], el = add('power', ITEMS[t.type]), [X, Y] = V(x + .5, y + .5);
+    el.style.left = pct(X); el.style.top = pct(Y);
+  });
+  // Players
+  s.players.forEach((P, p) => {
+    const seat = seatEl(p), av = seat.querySelector('.avatar');
+    av.style.background = PAL[P.color][1];
+    av.querySelector('span').textContent = (P.name || '?').charAt(0).toUpperCase();
+    seat.querySelector('.pname').textContent = P.name + (p === me ? ' (you)' : '');
+    const off = p !== me && !peerOnline();
+    av.classList.toggle('off', off);
+    seat.querySelector('.pstate').textContent = off ? 'offline…' : s.turn === p && s.phase !== 'over' ? 'playing' : '';
+    const pts = document.getElementById('pts-' + p); if (pts) pts.textContent = '🏅 ' + Math.min(P.score, WIN_POINTS) + '/' + WIN_POINTS;
+    const bn = document.getElementById('bname-' + p); if (bn) bn.textContent = P.name;
+    const box = seat.querySelector('.dicebox'), d = box.querySelector('.dice');
+    const isTurn = s.turn === p && s.phase !== 'over';
+    box.classList.toggle('on', isTurn);
+    box.classList.toggle('ready', isTurn && p === me && s.phase === 'roll' && s.seq === S.seq);
+    box.classList.toggle('dim', isTurn && s.phase === 'roll');
+    box.classList.toggle('doubled', isTurn && (s.phase === 'roll' ? s.x2 : s.dice > s.face));
+    if (isTurn) setFace(d, s.phase === 'move' ? s.face : (s.face || 6));
+  });
+  // Items
+  const MP = s.players[me], myTurn = s.turn === me && s.phase !== 'over';
+  [['x2', '#it-x2'], ['pick', '#it-pick'], ['shield', '#it-shield']].forEach(([k, q]) => {
+    const b = $(q); b.querySelector('.n').textContent = MP.items[k];
+    let ok = myTurn && MP.items[k] > 0;
+    if (k !== 'shield') ok = ok && s.phase === 'roll';
+    if (k === 'shield') ok = ok && MP.pawns.some((p, i) => p >= 0 && p <= LAST && !MP.shield[i]);
+    b.disabled = !ok && !(k === 'x2' && s.x2 && myTurn);
+    b.classList.toggle('armed', (k === 'x2' && s.x2 && myTurn) || (k === 'shield' && aim === 'shield'));
+  });
+  // Hint
+  let h = '';
+  if (s.phase === 'over') h = '';
+  else if (s.turn === me) {
+    if (aim === 'shield') h = 'Tap one of your pawns to protect it';
+    else if (s.phase === 'roll') h = s.x2 ? 'Double is on: tap the dice' : 'Your turn: tap the dice';
+    else if (s.burn) h = 'Three 6s in a row: turn lost';
+    else if (!legal(s).length) h = s.face === 6 ? 'No move: roll again' : 'No move possible';
+    else h = 'Choose a pawn to move';
+  } else {
+    const OP = s.players[1 - me];
+    h = mode === 'bot' ? 'Computer is playing…' : OP.name + "'s turn" + (peerOnline() ? '' : ' (offline: we will play for them)');
+  }
+  $('#hint').textContent = h;
+  $('#room-chip').textContent = mode === 'online' ? 'Room ' + code : 'Vs computer';
+  $('#net-chip').style.display = mode === 'online' ? '' : 'none';
+  // Game over
+  if (s.phase === 'over' && (!paint.overShown || paint.overShown !== s.game)) {
+    paint.overShown = s.game;
+    const won = s.winner === me;
+    sfx(won ? 'win' : 'lose');
+    const sc = s.players.map((P) => esc(P.name) + ' ' + P.score).join(' – ');
+    setTimeout(() => sheet(`<div class="win-title">${won ? '🏆 You win!' : esc(s.players[s.winner].name) + ' wins'}</div><p>${sc}</p>`,
+      [['Play again', playAgain], ['Menu', leaveGame]]), 700);
+  }
+}
 
-        function processUIUpdate(forceSnap = false) {
-            ['p1', 'p2'].forEach(pKey => {
-                let pColor = pKey === 'p1' ? 'blue' : 'green';
-                state[pKey].pions.forEach((pos, i) => {
-                    const el = document.getElementById(`${pKey}-${i}`);
-                    let oldPos = localState[pKey].pions[i];
-                    if (!forceSnap && oldPos !== pos) {
-                        animatePawn(pKey, i, oldPos, pos, () => {
-                            localState[pKey].pions[i] = pos;
-                            renderPawnFinal(pKey, pColor, i, pos, el);
-                        });
-                    } else {
-                        localState[pKey].pions[i] = pos;
-                        renderPawnFinal(pKey, pColor, i, pos, el);
-                    }
-                });
-            });
+/* ---------- Turn timer (ring around the avatar) ---------- */
+let timerStart = Date.now(), timerSeq = -1;
+function tickRing() {
+  requestAnimationFrame(tickRing);
+  const s = shown;
+  if (!inGame || !s) return;
+  const C = 2 * Math.PI * 31;
+  [0, 1].forEach((p) => {
+    const circ = seatEl(p).querySelector('.avatar circle');
+    const active = s.turn === p && s.phase !== 'over';
+    circ.style.opacity = active ? 1 : 0;
+    if (!active) return;
+    const f = Math.min(1, (Date.now() - timerStart) / TURN_MS);
+    circ.style.strokeDasharray = C * (1 - f) + ' ' + C;
+    circ.style.stroke = f < .6 ? '#45d37a' : f < .85 ? '#ffd84a' : '#ff5e52';
+  });
+}
 
-            document.getElementById('p1-score').innerText = state.p1.score;
-            document.getElementById('p2-score').innerText = state.p2.score;
+/* =====================================================================
+   7. TURN FLOW: who acts, automatic moves, time-outs
+   ===================================================================== */
+let timers = [];
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+function later(ms, fn) {
+  const seq = S.seq;
+  timers.push(setTimeout(() => { if (S && S.seq === seq && !busy && inGame) fn(); }, ms));
+}
+function commit(ns) {
+  ns.seq = S.seq + 1;
+  S = ns; persist();
+  if (mode === 'online') Net.send({ t: 'state', s: S });
+  push(S);
+}
+function autoAct() {
+  if (S.phase === 'roll') commit(mode === 'bot' && S.turn !== me ? botRollPhase(S) : applyRoll(S, rand6(), false));
+  else if (S.phase === 'move') { const b = bestMove(S); commit(b >= 0 ? applyMove(S, b) : applySkip(S)); }
+}
+function afterPaint(s) {
+  if (s.seq !== S.seq) return;            // a newer state is waiting to be drawn
+  clearTimers();
+  if (s.seq !== timerSeq) { timerSeq = s.seq; timerStart = Date.now(); }
+  if (sheet.kind === 'pick' && !(s.turn === me && s.phase === 'roll')) closeSheet();
+  if (s.phase === 'over') return;
+  const L = legal(s);
+  const localTurn = s.turn === me || mode === 'bot';
+  if (!localTurn) {
+    // Opponent's turn online: if they went offline, play for them after the time limit.
+    const watch = () => { if (!peerOnline()) { toast(s.players[s.turn].name + ' is away: playing for them'); autoAct(); } else later(3000, watch); };
+    later(TURN_MS + 3000, watch);
+    return;
+  }
+  if (s.phase === 'move' && !L.length) { later(1000, () => commit(applySkip(S))); return; }
+  if (mode === 'bot' && s.turn !== me) {
+    later(s.phase === 'roll' ? 700 : 550, autoAct);
+    return;
+  }
+  // My turn
+  if (s.phase === 'move') {
+    const spots = new Set(L.map((i) => s.players[me].pawns[i]));
+    if (spots.size === 1 && aim !== 'shield') later(450, () => commit(applyMove(S, L[0])));
+  }
+  later(TURN_MS, () => { aim = null; closeSheet(); autoAct(); });
+}
 
-            document.getElementById('p1-card').classList.toggle('active-turn', state.turn === 1);
-            document.getElementById('p2-card').classList.toggle('active-turn', state.turn === 2);
-            
-            renderInventory();
+/* ---------- Player input ---------- */
+const canAct = () => inGame && S && !busy && S.turn === me && S.phase !== 'over';
+function onDice() {
+  if (!canAct() || S.phase !== 'roll') return;
+  aim = null;
+  commit(applyRoll(S, rand6(), false));
+}
+function onPawn(p, i) {
+  if (!canAct() || p !== me) return;
+  const P = S.players[me];
+  if (aim === 'shield') {
+    if (P.pawns[i] >= 0 && P.pawns[i] <= LAST && !P.shield[i] && P.items.shield > 0) { aim = null; commit(applyShield(S, i)); sfx('shield'); }
+    return;
+  }
+  if (S.phase === 'move' && legal(S).includes(i)) commit(applyMove(S, i));
+}
+$('#it-x2').onclick = () => { if (canAct() && S.phase === 'roll' && (S.x2 || S.players[me].items.x2 > 0)) { aim = null; commit(applyArmX2(S)); } };
+$('#it-pick').onclick = () => {
+  if (!canAct() || S.phase !== 'roll' || S.players[me].items.pick < 1) return;
+  aim = null;
+  const btns = [1, 2, 3, 4, 5, 6].map((n) => `<button class="gbtn" data-n="${n}"><div class="dice">${'<i class="pip"></i>'.repeat(9)}</div></button>`).join('');
+  sheet('<h3>Choose your number</h3><div class="grid-btns three">' + btns + '</div>', [['Cancel', closeSheet]], 'pick');
+  document.querySelectorAll('#sheet [data-n]').forEach((b) => {
+    setFace(b.querySelector('.dice'), +b.dataset.n);
+    b.onclick = () => { closeSheet(); if (canAct() && S.phase === 'roll') commit(applyRoll(S, +b.dataset.n, true)); };
+  });
+};
+$('#it-shield').onclick = () => {
+  if (!canAct() || S.players[me].items.shield < 1) return;
+  aim = aim === 'shield' ? null : 'shield';
+  paint(S);
+};
 
-            let pData = state[`p${myRole}`];
-            if (state.winner > 0) {
-                document.getElementById('win-ui').style.display = 'flex';
-                let winMsg = state.winner === myRole ? "YOU WIN!" : "YOU LOSE!";
-                let winColor = state.winner === 1 ? 'var(--blue)' : 'var(--green)';
-                document.getElementById('win-msg').innerText = winMsg;
-                document.getElementById('win-msg').style.color = winColor;
-                document.getElementById('win-ui').style.borderColor = winColor;
-                return;
-            }
+function playAgain() {
+  closeSheet();
+  if (mode === 'bot' || role === 'host') startRematch();
+  else { Net.send({ t: 'rematch' }); toast('Waiting for ' + peerName + '…'); }
+}
+function leaveGame() {
+  closeSheet();
+  if (mode === 'online') { Net.send({ t: 'leave' }); setTimeout(() => Net.close(), 300); }
+  store.del('lm.session');
+  backToMenu();
+}
+$('#btn-leave').onclick = () => {
+  if (S && S.phase === 'over') return leaveGame();
+  sheet('<h3>Leave the game?</h3><p>' + (mode === 'online' ? 'Your friend will be told you left.' : '') + '</p>', [['Leave', leaveGame], ['Stay', closeSheet]]);
+};
 
-            let activePw = pData.activePowerIndex !== null ? pData.inventory[pData.activePowerIndex] : null;
-            if (state.turn === myRole && activePw === '🎯' && currentDice === 0) {
-                document.getElementById('target-ui').style.display = 'flex';
-            } else {
-                document.getElementById('target-ui').style.display = 'none';
-            }
-            
-            let statusText = state.turn === myRole ? "YOUR TURN" : "Waiting...";
-            document.getElementById('status-text').innerText = statusText;
-            
-            const diceBtn = document.getElementById('dice');
-            if (state.lastDice > 0 && currentDice === 0) diceBtn.innerText = getDiceFace(state.lastDice);
-            
-            if (state.turn === myRole && currentDice === 0 && activePw !== '🎯') {
-                diceBtn.classList.add('my-turn');
-            } else {
-                diceBtn.classList.remove('my-turn');
-            }
-            
-            if (activePw === '🚀') {
-                diceBtn.classList.add('x2-active');
-            } else {
-                diceBtn.classList.remove('x2-active');
-            }
+function enterGame() {
+  inGame = true; aim = null; shown = null; paint.overShown = S.phase === 'over' ? S.game : null;
+  closeSheet(); show('game'); buildBoard(); push(S);
+  clearInterval(pingTimer);
+  if (mode === 'online') {
+    pingTimer = setInterval(() => {
+      Net.send({ t: 'ping' });
+      if (shown && !busy) {   // refresh the "offline" labels
+        const off = !peerOnline();
+        if (off !== enterGame.off) { enterGame.off = off; paint(shown); }
+      }
+    }, 4000);
+    setNetStatus(Net.connectedCount());
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && inGame && mode === 'online') Net.send({ t: 'sync' });
+});
 
-            document.querySelectorAll('.power-icon').forEach(e => e.remove());
-            state.powers.forEach(pw => {
-                if (pw.pos !== -1) {
-                    let cell = document.getElementById(`cell-${pw.pos}`);
-                    if (cell) {
-                        let el = document.createElement('div');
-                        el.className = 'power-icon';
-                        el.innerText = pw.type;
-                        cell.appendChild(el);
-                    }
-                }
-            });
-        }
+/* =====================================================================
+   8. SHEETS, EMOJI, CHAT, SOUND
+   ===================================================================== */
+function sheet(html, buttons, kind) {
+  sheet.kind = kind || null;
+  const card = $('#sheet-card');
+  card.innerHTML = html + '<div class="grid-btns two" style="margin-top:14px"></div>';
+  const row = card.lastElementChild;
+  if (buttons.length === 1) row.className = 'grid-btns';
+  buttons.forEach(([label, fn]) => { const b = document.createElement('button'); b.className = 'btn'; b.style.marginTop = '0'; b.textContent = label; b.onclick = fn; row.appendChild(b); });
+  if (buttons.length === 1) row.firstChild.style.gridColumn = '1 / -1';
+  $('#sheet').classList.add('on');
+}
+function closeSheet() { sheet.kind = null; $('#sheet').classList.remove('on'); }
+$('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet' && sheet.kind) closeSheet(); });
 
-        function renderInventory() {
-            ['p1', 'p2'].forEach(pKey => {
-                let invDiv = document.getElementById(`${pKey}-inventory`);
-                invDiv.innerHTML = '';
-                let inv = state[pKey].inventory;
-                let activeIdx = state[pKey].activePowerIndex;
-                
-                inv.forEach((pw, i) => {
-                    let el = document.createElement('div');
-                    el.className = 'inv-item';
-                    if (activeIdx === i) el.classList.add('active-power');
-                    el.innerText = pw;
-                    if (pKey === `p${myRole}` && state.turn === myRole && currentDice === 0) {
-                        el.onclick = () => togglePower(i);
-                    }
-                    invDiv.appendChild(el);
-                });
-                
-                for(let i = inv.length; i < 3; i++) {
-                    let el = document.createElement('div');
-                    el.className = 'inv-item';
-                    el.style.opacity = '0.3';
-                    invDiv.appendChild(el);
-                }
-            });
-        }
+const EMOJIS = ['😀', '😂', '😎', '😮', '😡', '😭', '👍', '👏', '🔥', '🙏', '😴', '🎉'];
+const PHRASES = ['Hello!', 'Good luck!', 'Nice move!', 'Hurry up!', 'Oops!', 'Well played!', 'Thanks!', 'Bye!'];
+function bubble(seat, text, big) {
+  const b = $('#seat-' + seat + ' .bubble');
+  b.textContent = text; b.classList.toggle('big', !!big); b.style.display = 'block';
+  clearTimeout(b._h); b._h = setTimeout(() => (b.style.display = 'none'), 2600);
+}
+function say(kind, x) {
+  closeSheet();
+  bubble(0, x, kind === 'emoji');
+  if (mode === 'online') Net.send({ t: kind, x });
+  else if (mode === 'bot' && Math.random() < .5) setTimeout(() => bubble(1, ['👍', '😎', '😂', 'Good luck!'][Math.floor(Math.random() * 4)], true), 900);
+}
+$('#btn-emoji').onclick = () => {
+  sheet('<h3>Emoji</h3><div class="grid-btns">' + EMOJIS.map((e) => `<button class="gbtn" data-e="${e}">${e}</button>`).join('') + '</div>', [['Close', closeSheet]], 'social');
+  document.querySelectorAll('#sheet [data-e]').forEach((b) => (b.onclick = () => say('emoji', b.dataset.e)));
+};
+$('#btn-chat').onclick = () => {
+  sheet('<h3>Chat</h3><div class="grid-btns two">' + PHRASES.map((t) => `<button class="gbtn txt" data-t="${t}">${t}</button>`).join('') + '</div>', [['Close', closeSheet]], 'social');
+  document.querySelectorAll('#sheet [data-t]').forEach((b) => (b.onclick = () => say('chat', b.dataset.t)));
+};
 
-        function renderPawnFinal(pKey, pColor, i, pos, el) {
-            let coords = getPawnCoordinates(pColor, i, pos);
-            el.style.left = coords.x + 'px'; el.style.top = coords.y + 'px';
-            if(pos === 29) el.style.transform = `translate(-50%, -50%) scale(0.6)`;
-            else el.style.transform = `translate(-50%, -50%) scale(1)`;
+let actx = null;
+function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} }
+function tone(f, t0, dur, type = 'sine', vol = .15) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+  const t = actx.currentTime + t0;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.start(t); o.stop(t + dur);
+}
+function sfx(k) {
+  if (!sound || !actx) return;
+  try {
+    if (k === 'dice') for (let i = 0; i < 5; i++) tone(300 + Math.random() * 300, i * .07, .05, 'square', .05);
+    if (k === 'step') tone(660, 0, .07, 'triangle', .12);
+    if (k === 'pop') tone(880, 0, .1, 'sine', .15);
+    if (k === 'capture') { tone(520, 0, .12, 'sawtooth', .1); tone(260, .1, .25, 'sawtooth', .1); }
+    if (k === 'shield') tone(1200, 0, .2, 'sine', .1);
+    if (k === 'finish') [523, 659, 784].forEach((f, i) => tone(f, i * .09, .18, 'triangle', .13));
+    if (k === 'win') [523, 659, 784, 1046].forEach((f, i) => tone(f, i * .12, .3, 'triangle', .14));
+    if (k === 'lose') [392, 330, 262].forEach((f, i) => tone(f, i * .15, .3, 'triangle', .12));
+  } catch (e) {}
+}
+function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+$('#btn-sound').onclick = () => { sound = !sound; $('#btn-sound').textContent = sound ? '🔊' : '🔇'; store.set('lm.sound', sound); unlockAudio(); };
 
-            if (state[pKey].shield[i] === 1) {
-                el.style.border = '2px solid #FFBE0B';
-            } else {
-                el.style.border = 'none';
-            }
-            
-            const isMyTurn = (state.turn === myRole && pKey === `p${myRole}`);
-            let canMove = false;
-            if (isMyTurn && currentDice > 0) {
-                if (pos === -1 && (currentDice === 6 || currentDice === 12)) canMove = true;
-                if (pos >= 0 && pos + currentDice <= 29) canMove = true;
-            }
-            el.classList.toggle('can-move', canMove);
-        }
-    </script>
+/* ---------- Start ---------- */
+initGradients();
+initMenu();
+sound = store.get('lm.sound') !== false;
+$('#btn-sound').textContent = sound ? '🔊' : '🔇';
+requestAnimationFrame(tickRing);
+</script>
 </body>
 </html>
