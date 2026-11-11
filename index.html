@@ -228,6 +228,7 @@ button { font: inherit; color: inherit; border: 0; cursor: pointer; }
         <li>Land on an opponent to send it home: <b>+1 point</b> and another roll.</li>
         <li>Bring a pawn to the centre: <b>+1 point</b>. First to <b>3 points</b> wins.</li>
         <li>The star squares (both start squares) are safe.</li>
+        <li>Two of your pawns on the same square make a <b>block</b>: they cannot be captured.</li>
         <li>3 items wait in the yellow and red arms. Stop on one to take it; a new one appears at once.
           <b>Double</b> doubles your next roll, <b>Choose</b> lets you pick the number, <b>Shield</b> protects one pawn from one capture.</li>
         <li>You have 15 seconds per action, then the game plays for you.</li>
@@ -398,7 +399,9 @@ function applyMove(s0, i) {
   const lm = { id: s.moveId, p: me, i, from, to, cap: [], broke: [], got: null };
   if (to <= LAST) {
     const g = globalOf(P.color, to);
-    if (!SAFE.includes(g)) {
+    // Two or more pawns of the same colour on one square form a block: they cannot be captured.
+    if (pawnsAt(O, g) >= 2) lm.blocked = true;
+    else if (!SAFE.includes(g)) {
       O.pawns.forEach((op, j) => {
         if (globalOf(O.color, op) !== g) return;
         if (O.shield[j]) { O.shield[j] = 0; lm.broke.push(j); }
@@ -443,6 +446,9 @@ function refillPowers(s, avoid) {
   });
 }
 
+// How many pawns of player P stand on loop square g.
+function pawnsAt(P, g) { return P.pawns.filter((p) => globalOf(P.color, p) === g).length; }
+
 /* ---------- Computer player (also used when time runs out) ---------- */
 function threatened(s, oppIdx, g) {
   const O = s.players[oppIdx];
@@ -461,9 +467,11 @@ function scoreMove(s, i, dice, face) {
   if (to > LAST && to < DONE) sc += 30;
   if (to <= LAST) {
     const g = globalOf(P.color, to);
+    const joins = pawnsAt(P, g) >= (from >= 0 && globalOf(P.color, from) === g ? 2 : 1);   // forms a block
     if (SAFE.includes(g)) sc += 15;
+    else if (joins) sc += 20;
     else {
-      O.pawns.forEach((op, j) => { if (globalOf(O.color, op) === g) sc += O.shield[j] ? 10 : 90; });
+      if (pawnsAt(O, g) < 2) O.pawns.forEach((op, j) => { if (globalOf(O.color, op) === g) sc += O.shield[j] ? 10 : 90; });
       if (!P.shield[i] && threatened(s, 1 - me, g)) sc -= 40;
     }
     if (s.powers.some((t) => t.cell === g)) sc += 20;
@@ -919,6 +927,7 @@ async function animMove(prev, s) {
   const [lx, ly] = spotOf(P.color, lm.i, lm.to);
   if (lm.cap.length) { sfx('capture'); floatText(lx, ly, '+1'); vibrate(80); }
   if (lm.broke.length) { sfx('shield'); floatText(lx, ly, '🛡️'); }
+  if (lm.blocked) { sfx('shield'); floatText(lx, ly, 'Blocked!'); }
   if (lm.to === DONE) { sfx('finish'); floatText(lx, ly, '+1'); }
   if (lm.got) {
     sfx('pop');
